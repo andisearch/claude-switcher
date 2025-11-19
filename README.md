@@ -1,0 +1,82 @@
+# Claude Switcher
+
+A collection of scripts to easily switch between different authentication modes and providers for [Claude Code](https://claude.ai/code).
+
+## Features
+
+- **Multiple Providers**: Support for Anthropic API, AWS Bedrock, and Google Vertex AI.
+- **Model Switching**: Easily switch between Sonnet 4.5, Opus 4.1, or custom models.
+- **Pro Plan Support**: Toggle back to standard Claude Pro web authentication.
+- **Session Management**: Unique session IDs for tracking.
+- **Secure Configuration**: API keys stored in a separate, git-ignored file.
+
+## Installation
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/claude-switcher.git
+   cd claude-switcher
+   ```
+
+2. Run the setup script:
+   ```bash
+   ./setup.sh
+   ```
+
+3. Configure your secrets:
+   Edit `~/.claude-switcher/secrets.sh` and add your API keys/credentials.
+
+4. Add the scripts to your PATH (optional but recommended):
+   ```bash
+   export PATH="/path/to/claude-switcher/scripts:$PATH"
+   ```
+
+## Usage
+
+### AWS Bedrock
+```bash
+# Use default model (Sonnet 4.5)
+claude-aws
+
+# Use Opus 4.1
+claude-aws --opus
+
+# Use a custom model ID
+claude-aws --model "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+```
+
+### Google Vertex AI
+```bash
+# Use default model
+claude-vertex
+
+# Use Opus
+claude-vertex --opus
+```
+
+### Anthropic API
+```bash
+# Use default model
+claude-anthropic
+
+# Use Opus
+claude-anthropic --opus
+```
+
+### Claude Pro Plan
+```bash
+# Switch back to standard web auth
+claude-pro
+```
+
+## Configuration
+
+### Models
+Default model IDs are defined in `config/models.sh`. You can modify this file to change defaults for the project, or override them with environment variables.
+
+### Secrets
+Credentials are stored in `~/.claude-switcher/secrets.sh`. This file is not committed to the repository.
+
+## License
+
+MIT License. Please give credit to the original authors.

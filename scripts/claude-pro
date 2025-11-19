@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Source utils
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/utils.sh"
+
+# Load config (mainly for consistency, though Pro doesn't need keys)
+load_config
+
+CLAUDE_SESSION_ID="pro-$$-$(date +%s)"
+export CLAUDE_SESSION_ID
+
+print_status "Switching to Claude Pro Plan mode..."
+print_status "Session ID: $CLAUDE_SESSION_ID"
+
+# Store existing environment variables
+SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
+SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+SAVED_AWS_BEARER_TOKEN_BEDROCK="$AWS_BEARER_TOKEN_BEDROCK"
+
+# Disable Bedrock and API Keys to force Web Auth
+export CLAUDE_CODE_USE_BEDROCK=0
+unset AWS_BEARER_TOKEN_BEDROCK
+unset ANTHROPIC_API_KEY
+unset ANTHROPIC_MODEL # Let Pro plan decide default
+
+print_success "Claude Pro Plan mode activated"
+print_status "- Using Web Authentication"
+print_status "- Login/logout enabled"
+
+print_status "Launching Claude Code..."
+
+restore_environment() {
+    print_status "Restoring original environment variables..."
+    
+    if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
+        export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
+    else
+        unset CLAUDE_CODE_USE_BEDROCK
+    fi
+
+    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
+        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
+    else
+        unset ANTHROPIC_API_KEY
+    fi
+
+    if [ -n "$SAVED_AWS_BEARER_TOKEN_BEDROCK" ]; then
+        export AWS_BEARER_TOKEN_BEDROCK="$SAVED_AWS_BEARER_TOKEN_BEDROCK"
+    else
+        unset AWS_BEARER_TOKEN_BEDROCK
+    fi
+    
+    print_success "Environment restored"
+}
+
+trap restore_environment EXIT
+
+# Launch Claude Code
+claude "$@"

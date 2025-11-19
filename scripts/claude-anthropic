@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Source utils
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/utils.sh"
+
+# Load config and secrets
+load_config
+
+# Generate unique session identifier
+CLAUDE_SESSION_ID="anthropic-$$-$(date +%s)"
+export CLAUDE_SESSION_ID
+
+print_status "Switching to Claude Anthropic API mode..."
+print_status "Session ID: $CLAUDE_SESSION_ID"
+
+# Store existing environment variables
+SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
+SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
+SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+
+# Disable Bedrock
+export CLAUDE_CODE_USE_BEDROCK=0
+unset AWS_BEARER_TOKEN_BEDROCK
+
+# Ensure API Key is present
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    print_error "ANTHROPIC_API_KEY is not set. Please check your secrets.sh file."
+    exit 1
+fi
+
+# Parse arguments to select model
+parse_model_args "ANTHROPIC" "$@"
+
+# Strip our custom flags
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --opus|--sonnet)
+            shift
+            ;;
+        --model)
+            shift 2
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+print_success "Claude Anthropic API mode activated"
+print_status "- Using Anthropic API"
+print_status "- Model: $ANTHROPIC_MODEL"
+
+print_status "Launching Claude Code..."
+
+restore_environment() {
+    print_status "Restoring original environment variables..."
+    
+    if [ -n "$SAVED_ANTHROPIC_MODEL" ]; then
+        export ANTHROPIC_MODEL="$SAVED_ANTHROPIC_MODEL"
+    else
+        unset ANTHROPIC_MODEL
+    fi
+    
+    if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
+        export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
+    else
+        unset CLAUDE_CODE_USE_BEDROCK
+    fi
+
+    # We don't necessarily need to unset API key if it was set globally, 
+    # but if we loaded it from secrets just for this session, maybe we should?
+    # For now, let's restore to whatever it was (which might be empty).
+    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
+        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
+    else
+        unset ANTHROPIC_API_KEY
+    fi
+    
+    print_success "Environment restored"
+}
+
+trap restore_environment EXIT
+
+# Launch Claude Code
+claude "${ARGS[@]}"

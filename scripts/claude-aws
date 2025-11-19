@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Source utils
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/utils.sh"
+
+# Load config and secrets
+load_config
+
+# Generate unique session identifier
+CLAUDE_SESSION_ID="aws-$$-$(date +%s)"
+export CLAUDE_SESSION_ID
+
+print_status "Switching to Claude AWS Bedrock mode..."
+print_status "Session ID: $CLAUDE_SESSION_ID"
+
+# Store existing environment variables to restore after Claude exits
+SAVED_AWS_REGION="$AWS_REGION"
+SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
+SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
+
+# Enable Bedrock for current session
+export CLAUDE_CODE_USE_BEDROCK=1
+
+# Parse arguments to select model
+# This sets ANTHROPIC_MODEL
+parse_model_args "AWS" "$@"
+
+# Remove model flags from arguments passed to claude
+# We need to filter out --opus, --sonnet, --model <id>
+# A simple way is to reconstruct args, but for now let's just assume
+# the user might pass other flags to claude.
+# The parse_model_args function consumes the model flags but doesn't remove them from $@.
+# We need to actually shift them out or build a new array.
+# Let's refine the approach: we will just pass all args to claude, 
+# but claude might complain about unknown flags if we invented them.
+# So we should strip them.
+
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --opus|--sonnet)
+            shift
+            ;;
+        --model)
+            shift 2
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+print_success "Claude AWS Bedrock mode activated"
+print_status "- Using AWS Bedrock API"
+print_status "- Region: $AWS_REGION"
+print_status "- Model: $ANTHROPIC_MODEL"
+
+print_status "Launching Claude Code..."
+
+# Function to restore original environment variables
+restore_environment() {
+    print_status "Restoring original environment variables..."
+    
+    if [ -n "$SAVED_AWS_REGION" ]; then
+        export AWS_REGION="$SAVED_AWS_REGION"
+    else
+        unset AWS_REGION
+    fi
+    
+    if [ -n "$SAVED_ANTHROPIC_MODEL" ]; then
+        export ANTHROPIC_MODEL="$SAVED_ANTHROPIC_MODEL"
+    else
+        unset ANTHROPIC_MODEL
+    fi
+    
+    if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
+        export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
+    else
+        unset CLAUDE_CODE_USE_BEDROCK
+    fi
+    
+    print_success "Environment restored"
+}
+
+trap restore_environment EXIT
+
+# Launch Claude Code
+claude "${ARGS[@]}"
