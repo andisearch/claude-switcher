@@ -12,6 +12,7 @@ load_config
 
 echo ""
 print_status "=== Claude Code Configuration Status ==="
+print_status "claude-switcher version: $SWITCHER_VERSION"
 echo ""
 
 # Check API Key Helper configuration

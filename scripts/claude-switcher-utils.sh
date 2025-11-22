@@ -12,6 +12,24 @@ CONFIG_DIR="${HOME}/.claude-switcher"
 SECRETS_FILE="${CONFIG_DIR}/secrets.sh"
 MODELS_FILE="${CONFIG_DIR}/models.sh"
 
+# Version Detection
+# Try to find project root (where VERSION file lives)
+if [ -n "${BASH_SOURCE[0]}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+    PROJECT_ROOT="/usr/local/share/claude-switcher"
+fi
+
+# Read version from VERSION file
+if [ -f "$PROJECT_ROOT/VERSION" ]; then
+    SWITCHER_VERSION=$(cat "$PROJECT_ROOT/VERSION")
+elif [ -f "/usr/local/share/claude-switcher/VERSION" ]; then
+    SWITCHER_VERSION=$(cat "/usr/local/share/claude-switcher/VERSION")
+else
+    SWITCHER_VERSION="unknown"
+fi
+
 print_status() {
     echo -e "${BLUE}[Claude Switcher]${NC} $1"
 }
