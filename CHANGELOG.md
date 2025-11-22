@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-11-22
 
 ### Added
-- **Session-scoped API key switching**: claude-anthropic and claude-pro now preserve and restore original apiKeyHelper configuration
+- **Session-scoped API key switching**: claude-apikey and claude-pro now preserve and restore original apiKeyHelper configuration
 - **State preservation**: Automatic save/restore of existing apiKeyHelper settings for non-destructive operation
 - **Multi-session support**: Independent state tracking for concurrent Claude sessions
 - **Uninstall script**: Safe removal of all installed components with interactive prompts
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation of session-scoped behavior
 
 ### Changed
-- Removed destructive `/logout` calls from claude-anthropic (now uses apiKeyHelper)
+- Removed destructive `/logout` calls from claude-apikey (now uses apiKeyHelper)
 - Simplified claude-pro to temporarily disable apiKeyHelper for session
 - Updated all wrapper scripts to use session-scoped restore traps
 - Enhanced claude-status to show apiKeyHelper configuration and current mode

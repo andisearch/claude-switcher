@@ -75,13 +75,13 @@ CLAUDE_SETTINGS_FILE="$CLAUDE_SETTINGS_DIR/settings.json"
 
 # Note: We do NOT automatically add apiKeyHelper to settings.json
 # This would be destructive to the user's existing Claude setup
-# Instead, claude-anthropic will add it when first run
+# Instead, claude-apikey will add it when first run
 # And claude-pro will remove it when run
 
 echo ""
 echo -e "${GREEN}API Key Helper installed to $API_KEY_HELPER${NC}"
 echo ""
-echo -e "${YELLOW}Note: apiKeyHelper will be configured in settings.json when you first run 'claude-anthropic'${NC}"
+echo -e "${YELLOW}Note: apiKeyHelper will be configured in settings.json when you first run 'claude-apikey'${NC}"
 echo -e "${YELLOW}It will be removed when you run 'claude-pro' to restore default Claude behavior${NC}"
 echo -e "${YELLOW}Plain 'claude' command will always work as it did before installation${NC}"
 
@@ -103,7 +103,7 @@ SCRIPTS=(
     "claude-pro"
     "claude-aws"
     "claude-vertex"
-    "claude-anthropic"
+    "claude-apikey"
     "claude-azure"
     "claude-status"
     "claude-sessions"
@@ -134,7 +134,7 @@ echo "The following commands are now available system-wide:"
 echo "  claude-pro          - Switch to Claude Pro Plan mode"
 echo "  claude-aws          - Switch to AWS Bedrock mode"
 echo "  claude-vertex       - Switch to Google Vertex AI mode"
-echo "  claude-anthropic    - Switch to Anthropic API mode"
+echo "  claude-apikey    - Switch to Anthropic API mode"
 echo "  claude-azure        - Switch to Microsoft Foundry on Azure mode"
 echo "  claude-status       - Show current configuration"
 echo "  claude-sessions     - List active Claude sessions"

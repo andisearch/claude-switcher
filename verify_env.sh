@@ -51,5 +51,5 @@ echo "=== Testing Anthropic (Custom) ==="
 (
     export PATH="$PWD:$PATH"
     export ANTHROPIC_API_KEY="dummy-key"
-    source ./scripts/claude-anthropic --model "custom-model-id"
+    source ./scripts/claude-apikey --model "custom-model-id"
 )

@@ -20,7 +20,7 @@ Claude Switcher uses two complementary approaches for provider switching, **both
 
 For switching between **Claude Pro/Max subscription** and **Anthropic native API key**, claude-switcher uses Claude Code's `apiKeyHelper` setting with **automatic state preservation**:
 
-1. **Session start**: `claude-anthropic` saves your existing apiKeyHelper configuration (if any), then adds its own
+1. **Session start**: `claude-apikey` saves your existing apiKeyHelper configuration (if any), then adds its own
 2. **Mode tracking** in `~/.claude-switcher/current-mode.sh` stores the current provider (`pro` or `anthropic`)
 3. **Dynamic authentication**: The helper script returns your API key in `anthropic` mode
 4. **Session end**: Restore trap automatically restores your original apiKeyHelper configuration
@@ -66,7 +66,7 @@ You may be prompted for your password to allow installation to system directorie
 ```
 
 > **Important**: Setup does NOT modify your Claude configuration. The switcher scripts are **session-scoped**:
-> - Running `claude-anthropic` or `claude-pro` only affects THAT session
+> - Running `claude-apikey` or `claude-pro` only affects THAT session
 > - On exit, your original apiKeyHelper configuration is automatically restored
 > - Plain `claude` always runs in its native, unmodified state
 > - Safe even if you already have a custom apiKeyHelper configured
@@ -220,7 +220,7 @@ claude-aws --haiku --resume  # Switch to Haiku for speed
 
 **Large codebase analysis:**
 ```bash
-claude-anthropic --opus --resume  # Upgrade to Opus for complex reasoning
+claude-apikey --opus --resume  # Upgrade to Opus for complex reasoning
 ```
 
 **Back to Pro when limits reset:**
@@ -270,13 +270,13 @@ claude-vertex --haiku
 ### Anthropic API
 ```bash
 # Use default model (Sonnet 4.5 - latest)
-claude-anthropic
+claude-apikey
 
 # Use Opus (most capable for planning and reasoning)
-claude-anthropic --opus
+claude-apikey --opus
 
 # Use Haiku (fastest, most cost-effective)
-claude-anthropic --haiku
+claude-apikey --haiku
 ```
 
 ### Microsoft Foundry on Azure
@@ -449,7 +449,7 @@ export CLAUDE_SWITCHER_MODE="anthropic"
 
 To verify native state:
 ```bash
-# Exit any active claude-anthropic or claude-pro session
+# Exit any active claude-apikey or claude-pro session
 # Then check settings
 cat ~/.claude/settings.json
 # Should show your original apiKeyHelper (or no apiKeyHelper if you never had one)
@@ -488,14 +488,14 @@ echo 'export CLAUDE_SWITCHER_MODE="anthropic"' > ~/.claude-switcher/current-mode
 
 ### Still Getting Rate Limits After Switching?
 
-If you switch from Pro to `claude-anthropic` but still see Pro plan rate limits:
+If you switch from Pro to `claude-apikey` but still see Pro plan rate limits:
 
 1. Verify API key is set: `grep ANTHROPIC_API_KEY ~/.claude-switcher/secrets.sh`
-2. Check you're using the wrapper: Make sure you ran `claude-anthropic` (not plain `claude`)
+2. Check you're using the wrapper: Make sure you ran `claude-apikey` (not plain `claude`)
 3. Run `claude-status` during the session to verify configuration
 4. In the Claude session, run `/status` to see authentication method
 
-**Remember**: The wrapper only affects the current session. Each time you want Anthropic API, run `claude-anthropic`.
+**Remember**: The wrapper only affects the current session. Each time you want Anthropic API, run `claude-apikey`.
 
 ### Switching Back to Pro Not Working?
 
@@ -509,7 +509,7 @@ If web authentication doesn't activate after running `claude-pro`:
 
 ## Versioning
 
-**Current Version**: `1.0.0` (see [VERSION](VERSION) or run `claude-anthropic --version`)
+**Current Version**: `1.0.1` (see [VERSION](VERSION) or run `claude-apikey --version`)
 
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [CHANGELOG.md](CHANGELOG.md) for version history.
 

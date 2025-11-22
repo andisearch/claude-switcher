@@ -53,7 +53,7 @@ for pid in $(pgrep -x "claude" 2>/dev/null); do
             region="us-west-2"  # Default, could be extracted from env
         elif echo "$parent_cmd" | grep -q "claude-vertex"; then
             mode="Vertex AI"
-        elif echo "$parent_cmd" | grep -q "claude-anthropic"; then
+        elif echo "$parent_cmd" | grep -q "claude-apikey"; then
             mode="Anthropic API"
         elif echo "$parent_cmd" | grep -q "claude-pro"; then
             mode="Claude Pro"
@@ -72,7 +72,7 @@ done
 if [ "$found_sessions" = false ]; then
     echo ""
     print_status "No Claude sessions with session tracking found"
-    print_status "Sessions started with claude-pro, claude-aws, claude-vertex, or claude-anthropic will appear here"
+    print_status "Sessions started with claude-pro, claude-aws, claude-vertex, or claude-apikey will appear here"
 fi
 
 echo ""

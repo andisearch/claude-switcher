@@ -28,7 +28,7 @@ SCRIPTS=(
     "claude-pro"
     "claude-aws"
     "claude-vertex"
-    "claude-anthropic"
+    "claude-apikey"
     "claude-azure"
     "claude-status"
     "claude-sessions"
