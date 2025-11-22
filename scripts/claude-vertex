@@ -107,7 +107,7 @@ parse_model_args "VERTEX" "$@"
 ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --opus|--sonnet)
+        --opus|--sonnet|--haiku)
             shift
             ;;
         --model)

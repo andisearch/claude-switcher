@@ -21,17 +21,46 @@ print_status "Switching to Claude AWS Bedrock mode..."
 print_status "Session ID: $CLAUDE_SESSION_ID"
 
 # Validate AWS Bedrock credentials
-if [ -z "$AWS_BEARER_TOKEN_BEDROCK" ]; then
-    print_error "AWS_BEARER_TOKEN_BEDROCK is not set"
+# Support three authentication methods:
+# 1. AWS_BEARER_TOKEN_BEDROCK (API key)
+# 2. AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY
+# 3. AWS_PROFILE
+AUTH_METHOD=""
+if [ -n "$AWS_BEARER_TOKEN_BEDROCK" ]; then
+    AUTH_METHOD="AWS Bearer Token"
+elif [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+    AUTH_METHOD="AWS Access Keys"
+elif [ -n "$AWS_PROFILE" ]; then
+    AUTH_METHOD="AWS Profile ($AWS_PROFILE)"
+else
+    print_error "No AWS credentials configured"
     print_error ""
-    print_error "To use AWS Bedrock mode, you need to:"
-    print_error "  1. Set AWS_BEARER_TOKEN_BEDROCK in your secrets.sh file"
-    print_error "  2. Ensure AWS Bedrock is enabled in your AWS account"
-    print_error "  3. Grant appropriate IAM permissions for Bedrock model access"
+    print_error "To use AWS Bedrock mode, configure one of the following in your secrets.sh:"
     print_error ""
-    print_error "Example secrets.sh:"
-    print_error "  export AWS_BEARER_TOKEN_BEDROCK=\"your-api-key-here\""
-    print_error "  export AWS_REGION=\"us-west-2\""
+    print_error "Option 1: AWS Bedrock API Key (recommended for simplicity)"
+    print_error "  export AWS_BEARER_TOKEN_BEDROCK=\"your-bedrock-api-key\""
+    print_error ""
+    print_error "Option 2: AWS Access Keys"
+    print_error "  export AWS_ACCESS_KEY_ID=\"your_access_key\""
+    print_error "  export AWS_SECRET_ACCESS_KEY=\"your_secret_key\""
+    print_error "  export AWS_SESSION_TOKEN=\"your_session_token\"  # Optional"
+    print_error ""
+    print_error "Option 3: AWS Profile"
+    print_error "  export AWS_PROFILE=\"your-profile-name\""
+    print_error ""
+    print_error "All options require:"
+    print_error "  export AWS_REGION=\"us-west-2\"  # or your preferred region"
+    print_error ""
+    print_error "See: https://code.claude.com/docs/en/amazon-bedrock"
+    exit 1
+fi
+
+# Validate AWS region is set
+if [ -z "$AWS_REGION" ]; then
+    print_error "AWS_REGION is not set"
+    print_error ""
+    print_error "Please set AWS_REGION in your secrets.sh:"
+    print_error "  export AWS_REGION=\"us-west-2\"  # or your preferred region"
     exit 1
 fi
 
@@ -60,7 +89,7 @@ parse_model_args "AWS" "$@"
 ARGS=()
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --opus|--sonnet)
+        --opus|--sonnet|--haiku)
             shift
             ;;
         --model)
@@ -75,6 +104,7 @@ done
 
 print_success "Claude AWS Bedrock mode activated"
 print_status "- Using AWS Bedrock API"
+print_status "- Auth method: $AUTH_METHOD"
 print_status "- Region: $AWS_REGION"
 print_status "- Model: $ANTHROPIC_MODEL"
 
