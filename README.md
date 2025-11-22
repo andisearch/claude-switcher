@@ -507,25 +507,20 @@ If web authentication doesn't activate after running `claude-pro`:
 
 **Remember**: After exiting ANY wrapper script, plain `claude` returns to native state automatically.
 
-### AWS/Vertex/Azure Issues?
+## Versioning
 
-These providers don't use apiKeyHelper - they rely on environment variables:
+**Current Version**: `1.0.0` (see [VERSION](VERSION) or run `claude-anthropic --version`)
 
-- **AWS**: Verify `AWS_BEARER_TOKEN_BEDROCK` or AWS credentials are set
-- **Vertex**: Verify `gcloud auth application-default login` is complete
-- **Azure**: Verify `ANTHROPIC_FOUNDRY_API_KEY` or `az login` is complete
+This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-Run `claude-status` to see provider-specific configuration.
-
-### Restore Original settings.json
-
-If you need to remove apiKeyHelper:
-
+**Creating a Release** (maintainers):
 ```bash
-# Restore from backup
-cp ~/.claude/settings.json.backup-YYYYMMDD-HHMMSS ~/.claude/settings.json
-
-# Or manually remove apiKeyHelper line from settings.json
+# 1. Update VERSION and CHANGELOG.md
+# 2. Commit and tag
+git add VERSION CHANGELOG.md
+git commit -m "Bump version to x.y.z"
+git tag -a vx.y.z -m "Release vx.y.z: Description"
+git push origin main && git push origin vx.y.z
 ```
 
 ## License
