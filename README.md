@@ -71,6 +71,23 @@ You may be prompted for your password to allow installation to system directorie
 > - Plain `claude` always runs in its native, unmodified state
 > - Safe even if you already have a custom apiKeyHelper configured
 
+## Uninstallation
+
+To completely remove claude-switcher from your system:
+
+```bash
+cd claude-switcher
+./uninstall.sh
+```
+
+The uninstall script will:
+- Remove all installed command scripts from `/usr/local/bin`
+- Ask before removing your configuration directory (contains API keys)
+- Clean up any references to apiKeyHelper in settings.json (if applicable)
+- Preserve your `~/.claude/settings.json` and any backups
+
+**Safe and non-destructive**: The script asks for confirmation before removing any user data.
+
 ### 3. Configure Your Secrets
 The setup script creates a secrets file at `~/.claude-switcher/secrets.sh`. You must edit this file to add your API keys and credentials.
 
