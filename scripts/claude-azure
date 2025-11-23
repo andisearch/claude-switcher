@@ -70,6 +70,7 @@ SAVED_ANTHROPIC_SMALL_FAST_MODEL="$ANTHROPIC_SMALL_FAST_MODEL"
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
 SAVED_CLAUDE_CODE_USE_VERTEX="$CLAUDE_CODE_USE_VERTEX"
 SAVED_CLAUDE_CODE_USE_FOUNDRY="$CLAUDE_CODE_USE_FOUNDRY"
+SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 
 # Disable other providers
 export CLAUDE_CODE_USE_BEDROCK=0
@@ -123,6 +124,10 @@ fi
 
 print_status "Launching Claude Code..."
 
+# Unset ANTHROPIC_API_KEY to prevent auth conflict with Azure Foundry
+# This ensures only Azure Foundry authentication is active
+unset ANTHROPIC_API_KEY
+
 restore_environment() {
     print_status "Restoring original environment variables..."
     
@@ -154,6 +159,12 @@ restore_environment() {
         export CLAUDE_CODE_USE_FOUNDRY="$SAVED_CLAUDE_CODE_USE_FOUNDRY"
     else
         unset CLAUDE_CODE_USE_FOUNDRY
+    fi
+    
+    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
+        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
+    else
+        unset ANTHROPIC_API_KEY
     fi
     
     print_success "Environment restored"

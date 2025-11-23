@@ -100,6 +100,7 @@ SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
 SAVED_ANTHROPIC_SMALL_FAST_MODEL="$ANTHROPIC_SMALL_FAST_MODEL"
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
 SAVED_CLAUDE_CODE_USE_VERTEX="$CLAUDE_CODE_USE_VERTEX"
+SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 
 # Disable Bedrock and enable Vertex
 export CLAUDE_CODE_USE_BEDROCK=0
@@ -157,6 +158,10 @@ print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
 
 print_status "Launching Claude Code..."
 
+# Unset ANTHROPIC_API_KEY to prevent auth conflict with Vertex AI
+# This ensures only Vertex AI authentication is active
+unset ANTHROPIC_API_KEY
+
 restore_environment() {
     print_status "Restoring original environment variables..."
     
@@ -182,6 +187,12 @@ restore_environment() {
         export CLAUDE_CODE_USE_VERTEX="$SAVED_CLAUDE_CODE_USE_VERTEX"
     else
         unset CLAUDE_CODE_USE_VERTEX
+    fi
+    
+    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
+        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
+    else
+        unset ANTHROPIC_API_KEY
     fi
     
     print_success "Environment restored"

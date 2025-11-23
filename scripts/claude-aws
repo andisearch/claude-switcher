@@ -69,6 +69,7 @@ SAVED_AWS_REGION="$AWS_REGION"
 SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
 SAVED_ANTHROPIC_SMALL_FAST_MODEL="$ANTHROPIC_SMALL_FAST_MODEL"
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
+SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 
 # Enable Bedrock for current session
 export CLAUDE_CODE_USE_BEDROCK=1
@@ -112,6 +113,10 @@ print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
 
 print_status "Launching Claude Code..."
 
+# Unset ANTHROPIC_API_KEY to prevent auth conflict with AWS Bedrock
+# This ensures only AWS Bedrock authentication is active
+unset ANTHROPIC_API_KEY
+
 # Function to restore original environment variables
 restore_environment() {
     print_status "Restoring original environment variables..."
@@ -138,6 +143,12 @@ restore_environment() {
         export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
     else
         unset CLAUDE_CODE_USE_BEDROCK
+    fi
+    
+    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
+        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
+    else
+        unset ANTHROPIC_API_KEY
     fi
     
     print_success "Environment restored"
