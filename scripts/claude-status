@@ -15,11 +15,14 @@ print_status "=== Claude Code Configuration Status ==="
 print_status "claude-switcher version: $SWITCHER_VERSION"
 echo ""
 
-# Check if we're running in an active Claude session by checking parent processes
+# Check if we're running in an active Claude session
+# This could be:
+# 1. Direct child of a wrapper script that has a session file
+# 2. Running inside a Claude terminal (child of the claude process)
 CURRENT_SESSION_FILE=""
 current_pid=$$
 
-# Walk up the process tree to find if we're inside a Claude session
+# First, walk up the process tree to look for a session file
 while [ $current_pid -ne 1 ]; do
     # Check if there's a session file for this PID
     if [ -f "$SESSIONS_DIR/$current_pid" ]; then
@@ -33,6 +36,42 @@ while [ $current_pid -ne 1 ]; do
         break
     fi
 done
+
+# If we didn't find a session file by walking up, look for Claude processes
+# and check if any of them have session files (we might be inside Claude's terminal)
+if [ -z "$CURRENT_SESSION_FILE" ]; then
+    # Find all claude processes
+    for claude_pid in $(pgrep -x "claude" 2>/dev/null); do
+        # Check if we're a descendant of this claude process
+        check_pid=$$
+        while [ $check_pid -ne 1 ]; do
+            if [ "$check_pid" = "$claude_pid" ]; then
+                # We're a descendant! Check if there's a session file for this claude PID
+                # or for any of its ancestors
+                session_search_pid=$claude_pid
+                while [ $session_search_pid -ne 1 ]; do
+                    if [ -f "$SESSIONS_DIR/$session_search_pid" ]; then
+                        CURRENT_SESSION_FILE="$SESSIONS_DIR/$session_search_pid"
+                        break 2
+                    fi
+                    session_search_pid=$(ps -p $session_search_pid -o ppid= 2>/dev/null | tr -d ' ')
+                    if [ -z "$session_search_pid" ]; then
+                        break
+                    fi
+                done
+            fi
+            check_pid=$(ps -p $check_pid -o ppid= 2>/dev/null | tr -d ' ')
+            if [ -z "$check_pid" ]; then
+                break
+            fi
+        done
+        
+        # If we found a session, stop searching
+        if [ -n "$CURRENT_SESSION_FILE" ]; then
+            break
+        fi
+    done
+fi
 
 # If we found a session, display it prominently
 if [ -n "$CURRENT_SESSION_FILE" ]; then

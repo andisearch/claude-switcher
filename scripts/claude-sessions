@@ -122,6 +122,23 @@ for pid in $(pgrep -x "claude" 2>/dev/null); do
         continue
     fi
     
+    # Check if this process is a child of any tracked session
+    # Walk up the process tree to see if we find a tracked session
+    is_child_of_tracked=false
+    current_ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
+    while [ -n "$current_ppid" ] && [ "$current_ppid" != "1" ]; do
+        if [ -f "$SESSIONS_DIR/$current_ppid" ]; then
+            is_child_of_tracked=true
+            break
+        fi
+        current_ppid=$(ps -p "$current_ppid" -o ppid= 2>/dev/null | tr -d ' ')
+    done
+    
+    # Skip if this is a child of a tracked session
+    if [ "$is_child_of_tracked" = true ]; then
+        continue
+    fi
+    
     found_sessions=true
     
     # Calculate uptime from process start time

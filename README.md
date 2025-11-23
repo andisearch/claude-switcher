@@ -597,12 +597,16 @@ git tag -a vx.y.z -m "Release vx.y.z: Description"
 git push origin main && git push origin vx.y.z
 ```
 
-## Author
+## Authors
 
-**Claude Switcher** is created and maintained by **Jed White**, CTO of [Andi](https://andisearch.com).
+**Claude Switcher** is created and maintained by:
+- **Jed White**, CTO of [Andi](https://andisearch.com)
+- **Angela Hoover**, CEO of [Andi](https://andisearch.com)
+
+Contributions welcome. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for a full list of contributors.
 
 ## License
 
-MIT License. Copyright (c) 2025 Andi - AI Search for the Next Generation.
+MIT License. Copyright (c) 2025 LazyWeb Inc DBA Andi (https://andisearch.com).
 
 See [LICENSE](LICENSE) for full license text.
