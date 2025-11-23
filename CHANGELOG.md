@@ -5,7 +5,21 @@ All notable changes to claude-switcher will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-11-23
+
+### Added
+- **ASCII Banner**: Welcome banner displaying "Claude Switcher" branding on command launch
+- Banner uses ANSI colors matching Andi AI brand (blue/cyan theme)
+- Centralized banner configuration in `~/.claude-switcher/banner.sh`
+- All command scripts (`claude-aws`, `claude-azure`, `claude-vertex`, `claude-apikey`, `claude-pro`) now display banner on startup
+
+### Changed
+- Updated `setup.sh` to install banner configuration file
+- Added `display_banner()` function to `claude-switcher-utils.sh` for centralized banner management
+- Enhanced project branding with "Brought to you by Andi AI" tagline
+
 ## [1.0.1] - 2025-11-22
+
 
 ### Fixed
 - **Authentication conflict**: claude-apikey no longer exports ANTHROPIC_API_KEY as an environment variable, preventing "Auth conflict" warning from Claude CLI

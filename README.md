@@ -580,7 +580,7 @@ If web authentication doesn't activate after running `claude-pro`:
 
 ## Versioning
 
-**Current Version**: `1.0.1` (see [VERSION](VERSION) or run `claude-apikey --version`)
+**Current Version**: `1.0.2` (see [VERSION](VERSION) or run `claude-apikey --version`)
 
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [CHANGELOG.md](CHANGELOG.md) for version history.
 
