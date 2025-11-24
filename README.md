@@ -60,6 +60,9 @@ Claude Switcher is brought to you by the team from [Andi AI](https://andisearch.
    # Continue your last conversation on any provider
    claude-aws --resume
    claude-vertex --resume
+
+   # Switch back to your native Claude Code
+   claude --resume
    ```
 
 That's it! See below for detailed configuration options and advanced features.
@@ -76,81 +79,39 @@ That's it! See below for detailed configuration options and advanced features.
 
 ## How It Works
 
-Claude Switcher uses two complementary approaches for provider switching, **both session-scoped and non-destructive**:
+Claude Switcher provides **session-scoped, non-destructive** provider switching:
 
-### API Key Helper (Anthropic API ↔ Pro/Max)
+- **AWS/Vertex/Azure**: Scripts set provider-specific environment variables (`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_USE_FOUNDRY`) and launch Claude Code
+- **Anthropic API**: Uses Claude Code's `apiKeyHelper` to read your API key from `secrets.sh` without exposing it as an environment variable
+- **Pro/Max Mode**: `claude-pro` temporarily removes apiKeyHelper for the session
+- **Automatic Restoration**: All sessions preserve and restore your original configuration on exit
+- **Plain `claude` Unaffected**: Always runs in your native, unmodified state
 
-For switching between **Claude Pro/Max subscription** and **Anthropic native API key**, claude-switcher uses Claude Code's `apiKeyHelper` setting with **automatic state preservation**:
-
-1. **Session start**: `claude-apikey` saves your existing apiKeyHelper configuration (if any), then adds its own
-2. **Mode tracking** in `~/.claude-switcher/current-mode.sh` stores the current provider (`pro` or `anthropic`)
-3. **Dynamic authentication**: The helper script reads `ANTHROPIC_API_KEY` from `secrets.sh` and returns it to Claude
-4. **No env variable exposure**: `ANTHROPIC_API_KEY` is NOT exported to the Claude CLI process, preventing auth conflicts
-5. **Session end**: Restore trap automatically restores your original apiKeyHelper configuration
-6. **Plain `claude` unaffected**: Always works exactly as before installation
-
-**Similarly for Pro mode**: `claude-pro` temporarily removes apiKeyHelper for the session, then restores it on exit.
-
-**Key benefits**:
-- ✅ **Non-destructive**: Preserves your existing apiKeyHelper if you have one
-- ✅ **Session-scoped**: Like AWS/Vertex/Azure, changes only affect the wrapper script session  
-- ✅ **Auto-cleanup**: Plain `claude` always runs in native state after any script exits
-- ✅ **Multi-session safe**: Each session has independent state tracking
-- ✅ **No auth conflicts**: Only one authentication method visible to Claude CLI
-### Environment Variables (AWS, Vertex AI, Azure)
-
-For **AWS Bedrock**, **Google Vertex AI**, and **Microsoft Foundry on Azure**, switching is even simpler:
-
-- Each provider has a dedicated environment variable (`CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `CLAUDE_CODE_USE_FOUNDRY`)
-- Setting these automatically disables `/login` and `/logout` commands
-- No apiKeyHelper needed—Claude Code natively supports these providers
-- Scripts just set the appropriate environment variables and launch Claude Code
-
-**Result**: Seamless switching between any provider without logout flows, browser prompts, or authentication friction.
+**Result**: Switch between any provider instantly without logout flows, browser prompts, or authentication friction.
 
 ## Installation
 
-### 1. Clone the Repository
+### 1. Clone and Setup
 ```bash
 git clone https://github.com/andisearch/claude-switcher.git
 cd claude-switcher
-```
-
-### 2. Run the Setup Script
-This script will:
-- Install commands to `/usr/local/bin` for system-wide access
-- Create your configuration directory at `~/.claude-switcher/`
-- Install the API key helper script (but NOT activate it yet)
-- **Does NOT modify** your existing `~/.claude/settings.json`
-
-You may be prompted for your password to allow installation to system directories.
-
-```bash
 ./setup.sh
 ```
 
-> **Important**: Setup does NOT modify your Claude configuration. The switcher scripts are **session-scoped**:
-> - Running `claude-apikey` or `claude-pro` only affects THAT session
-> - On exit, your original apiKeyHelper configuration is automatically restored
-> - Plain `claude` always runs in its native, unmodified state
-> - Safe even if you already have a custom apiKeyHelper configured
+The setup script installs commands to `/usr/local/bin`, creates `~/.claude-switcher/` for configuration, and installs the API key helper. You may be prompted for your password.
 
-## Uninstallation
+> [!TIP]
+> Setup does NOT modify your Claude configuration. All switcher scripts are **session-scoped**—they only affect their own session and automatically restore your original configuration on exit. Plain `claude` always runs unmodified.
 
-To completely remove claude-switcher from your system:
+### 2. Uninstallation
+
+To remove claude-switcher:
 
 ```bash
-cd claude-switcher
 ./uninstall.sh
 ```
 
-The uninstall script will:
-- Remove all installed command scripts from `/usr/local/bin`
-- Ask before removing your configuration directory (contains API keys)
-- Clean up any references to apiKeyHelper in settings.json (if applicable)
-- Preserve your `~/.claude/settings.json` and any backups
-
-**Safe and non-destructive**: The script asks for confirmation before removing any user data.
+Removes all commands from `/usr/local/bin`, prompts before removing configuration (contains API keys), and cleans up apiKeyHelper references while preserving your settings and backups.
 
 ### 3. Configure Your Secrets
 The setup script creates a secrets file at `~/.claude-switcher/secrets.sh`. You must edit this file to add your API keys and credentials.
@@ -164,63 +125,33 @@ Uncomment and fill in the sections for the providers you wish to use:
 
 **AWS Bedrock:**
 
-Multiple authentication methods supported (see [official docs](https://code.claude.com/docs/en/amazon-bedrock)):
+Recommended authentication ([see all options](https://code.claude.com/docs/en/amazon-bedrock)):
 
 ```bash
-# Option 1: AWS Bedrock API Key (recommended for simplicity)
-export AWS_BEARER_TOKEN_BEDROCK="your-bedrock-api-key"
-export AWS_REGION="us-west-2"
-
-# Option 2: AWS Access Keys
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_REGION="us-west-2"
-
-# Option 3: AWS Profile
+# AWS Profile (recommended)
 export AWS_PROFILE="your-profile-name"
 export AWS_REGION="us-west-2"
 ```
-> **Note**: `AWS_REGION` is required for all auth methods. Scripts validate authentication is configured before launching.
+
+> **Note**: Alternatives include `AWS_BEARER_TOKEN_BEDROCK` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. `AWS_REGION` is required.
 
 **Google Vertex AI:**
 
-**Authentication Methods** (checked in this precedence order):
-
-1. **Service Account Key File** (highest precedence) - Recommended for production/CI
-   ```bash
-   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
-   ```
-
-2. **Application Default Credentials** - Recommended for local development
-   ```bash
-   gcloud auth application-default login
-   ```
-
-3. **gcloud User Credentials** (lowest precedence) - Fallback method
-   ```bash
-   gcloud auth login
-   ```
-
-The `claude-vertex` script automatically detects which method is available and uses the highest precedence one.
-
 **Setup Steps:**
 1. **Install Google Cloud SDK**: [Download here](https://cloud.google.com/sdk/docs/install)
-2. **Authenticate** using one of the methods above
+2. **Authenticate** using one of these methods (checked in precedence order):
+   - **Service Account Key** (production/CI): `export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"`
+   - **Application Default Credentials** (local dev): `gcloud auth application-default login`
+   - **gcloud User Credentials** (fallback): `gcloud auth login`
 3. **Enable Vertex AI API**: [Click to enable](https://console.cloud.google.com/flows/enableapi?apiid=aiplatform.googleapis.com)
-4. **Enable Claude Models**: [Open Model Garden](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-sonnet-4) and click "Enable" on models you want to use
+4. **Enable Claude Models**: [Open Model Garden](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-sonnet-4) and enable desired models
 5. **Configure secrets.sh**:
    ```bash
    export ANTHROPIC_VERTEX_PROJECT_ID="your-gcp-project-id"
    export CLOUD_ML_REGION="global"
    ```
 
-> **Optional**: Set specific regions per model (defaults to `CLOUD_ML_REGION`):
-> ```bash
-> export VERTEX_REGION_CLAUDE_4_5_SONNET="us-east5"
-> export VERTEX_REGION_CLAUDE_4_1_OPUS="global"
-> ```
->
-> **Note**: Models are region-specific. Check [availability](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden) in your region.
+> **Note**: Models are region-specific. Check [availability](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden) in your region. Optionally set per-model regions with `VERTEX_REGION_CLAUDE_4_5_SONNET` etc.
 
 **Anthropic API:**
 
@@ -235,26 +166,20 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 Announced November 18, 2024 ([blog post](https://www.anthropic.com/news/claude-in-microsoft-foundry)).
 
 **Setup Steps:**
-1. **Create Azure Resource**: Navigate to [Microsoft Foundry portal](https://ai.azure.com/)
-2. **Deploy Models**: Create deployments for Claude Opus, Sonnet, and/or Haiku
-3. **Get Credentials**: From your resource's "Endpoints and keys" section
+1. Navigate to [Microsoft Foundry portal](https://ai.azure.com/) and create an Azure resource
+2. Deploy Claude models (Opus, Sonnet, and/or Haiku)
+3. Get credentials from your resource's "Endpoints and keys" section
 4. **Configure secrets.sh**:
    ```bash
    # Option 1: API Key (simpler)
    export ANTHROPIC_FOUNDRY_API_KEY="your-azure-api-key"
    export ANTHROPIC_FOUNDRY_RESOURCE="your-resource-name"
    
-   # Option 2: Azure CLI (az login)
+   # Option 2: Azure CLI (run: az login)
    export ANTHROPIC_FOUNDRY_RESOURCE="your-resource-name"
-   # Then run: az login
-   
-   # Set your deployment names (must match what you created in Azure)
-   export CLAUDE_MODEL_SONNET_AZURE="claude-sonnet-4-5"
-   export CLAUDE_MODEL_HAIKU_AZURE="claude-haiku-4-5"
-   export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-1"
    ```
 
-> **Note**: Model names in Azure are your custom deployment names, not the standard model IDs.
+> **Note**: Set deployment names to match what you created in Azure: `CLAUDE_MODEL_SONNET_AZURE`, `CLAUDE_MODEL_HAIKU_AZURE`, `CLAUDE_MODEL_OPUS_AZURE`.
 
 #### Overriding Defaults (Optional)
 You can override default model IDs or regions in the same `secrets.sh` file. This is useful for testing new models or using custom endpoints.
@@ -267,7 +192,7 @@ export CLAUDE_MODEL_SONNET_AWS="global.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 ## Switching Providers to Avoid Rate Limits
 
-**This is the killer feature.** Claude Pro has daily rate limits that reset every 5 hours, and weekly limits that reset every 7 days. When you hit a limit mid-task, instantly switch to your own API keys and keep working.
+**This is the killer feature.** Claude Pro has rate limits that reset every 5 hours (daily) and 7 days (weekly). When you hit a limit mid-task, instantly switch to your API keys and keep working.
 
 ### Quick Switch with `--resume`
 
@@ -279,104 +204,59 @@ claude
 # Immediately continue with AWS (keeps conversation context)
 claude-aws --resume
 
-# Or switch to Haiku for speed/cost
+# Or switch to Haiku for speed/cost, Opus for complex reasoning
 claude-aws --haiku --resume
-
-# Or switch to Opus for complex reasoning
 claude-aws --opus --resume
 
 # Or use Vertex AI
 claude-vertex --resume
 ```
 
-The `--resume` flag lets you pick up your last conversation exactly where you left off (or any recent conversation). No lost context, no restarting explanations.
+The `--resume` flag picks up your last conversation exactly where you left off. No lost context, no restarting explanations.
 
 ### Common Workflows
 
-**Hit Pro limit mid-debugging:**
 ```bash
-claude-aws --resume  # Continue on your AWS credits
-```
-
-**Need faster responses:**
-```bash
-claude-aws --haiku --resume  # Switch to Haiku for speed
-```
-
-**Large codebase analysis:**
-```bash
-claude-apikey --opus --resume  # Upgrade to Opus for complex reasoning
-```
-
-**Back to Pro when limits reset:**
-```bash
-claude --resume  # Resume on your default Pro or Max plan
+claude-aws --resume          # Hit Pro limit? Continue on AWS credits
+claude-aws --haiku --resume  # Need faster responses? Switch to Haiku
+claude-apikey --opus --resume # Complex reasoning needed? Use Opus
+claude --resume              # Back to Pro when limits reset
 ```
 
 ### Why This Works
 
-- **Claude Pro**: Great for normal work, but limited (10-40 prompts per 5-hour window)
-- **Your API**: Unlimited usage, pay per token. Allows you to use cloud credits.
-- **Instant switching**: One command, same conversation
-- **No friction**: The only thing stopping you from switching was how annoying it was. Not anymore.
+- **Claude Pro**: Great for normal work, limited (10-40 prompts per 5-hour window)
+- **Your API**: Unlimited usage, pay per token, use cloud credits
+- **Instant switching**: One command, same conversation, no friction
 
 
 ## Usage
 
-Once installed, you can use the following commands from any terminal window.
+Once installed, use these commands from any terminal window:
 
-### AWS Bedrock
+### Provider Commands
+
+| Provider | Command | Model Flags | Custom Model |
+|----------|---------|-------------|-------------|
+| **AWS Bedrock** | `claude-aws` | `--opus`, `--haiku`, `--sonnet` (default) | `--model "global.anthropic.claude-sonnet-4-5-20250929-v1:0"` |
+| **Google Vertex AI** | `claude-vertex` | `--opus`, `--haiku`, `--sonnet` (default) | `--model "claude-sonnet-4-5@20250929"` |
+| **Anthropic API** | `claude-apikey` | `--opus`, `--haiku`, `--sonnet` (default) | `--model "claude-sonnet-4-5-20250929"` |
+| **Microsoft Azure** | `claude-azure` | `--opus`, `--haiku`, `--sonnet` (default) | `--model "my-custom-deployment"` |
+| **Claude Pro/Max** | `claude-pro` or `claude` | N/A - uses subscription | N/A |
+
+**Examples:**
 ```bash
 # Use default model (Sonnet 4.5 - latest)
 claude-aws
 
 # Use Opus 4.1 (most capable for planning and reasoning)
-claude-aws --opus
-
-#Use Haiku 4.5 (fastest, most cost-effective)
-claude-aws --haiku
-
-# Use a custom model ID
-claude-aws --model "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-```
-
-### Google Vertex AI
-```bash
-# Use default model (Sonnet 4.5 - latest)
-claude-vertex
-
-# Use Opus (most capable for planning and reasoning)
 claude-vertex --opus
 
-# Use Haiku (fastest, most cost-effective)
-claude-vertex --haiku
-```
-
-### Anthropic API
-```bash
-# Use default model (Sonnet 4.5 - latest)
-claude-apikey
-
-# Use Opus (most capable for planning and reasoning)
-claude-apikey --opus
-
-# Use Haiku (fastest, most cost-effective)
+# Use Haiku 4.5 (fastest, most cost-effective)
 claude-apikey --haiku
-```
 
-### Microsoft Foundry on Azure
-```bash
-# Use default model (Sonnet deployment)
-claude-azure
-
-# Use Opus deployment
-claude-azure --opus
-
-# Use Haiku deployment
-claude-azure --haiku
-
-# Use custom deployment name
-claude-azure --model "my-custom-deployment"
+# Use custom model ID or deployment
+claude-aws --model "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 ```
 
 ### Claude Pro Plan
@@ -453,83 +333,40 @@ PID      Provider        Model                                    Region/Project
 ## Configuration
 
 ### Models
-Default model IDs are defined in `config/models.sh`. The `--sonnet`, `--opus`, and `--haiku` flags automatically use the latest available version of each model tier.
 
-While you can modify `config/models.sh` directly, it is recommended to use `~/.claude-switcher/secrets.sh` for overrides to avoid merge conflicts when updating.
+Default model IDs are defined in `config/models.sh`. The `--sonnet`, `--opus`, and `--haiku` flags use the latest version of each model tier. To customize models, override them in `~/.claude-switcher/secrets.sh` (see `secrets.example.sh` for all available variables).
 
-#### Variable Naming
-The scripts use provider-specific model variables that can be customized in `secrets.sh`:
+#### Model Configuration: Main + Small/Fast Models
 
-```bash
-# AWS Bedrock
-export CLAUDE_MODEL_SONNET_AWS="global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-export CLAUDE_MODEL_OPUS_AWS="us.anthropic.claude-opus-4-1-20250805-v1:0"
-export CLAUDE_MODEL_HAIKU_AWS="us.anthropic.claude-haiku-4-5-20251001-v1:0"
-export CLAUDE_SMALL_FAST_MODEL_AWS="us.anthropic.claude-haiku-4-5-20251001-v1:0"
+Claude Code uses **two models** for optimal performance:
 
-# Google Vertex AI
-export CLAUDE_MODEL_SONNET_VERTEX="claude-sonnet-4-5@20250929"
-export CLAUDE_MODEL_OPUS_VERTEX="claude-opus-4-1@20250805"
-export CLAUDE_MODEL_HAIKU_VERTEX="claude-haiku-4-5@20251001"
-export CLAUDE_SMALL_FAST_MODEL_VERTEX="claude-haiku-4-5@20251001"
-
-# Anthropic API
-export CLAUDE_MODEL_SONNET_ANTHROPIC="claude-sonnet-4-5-20250929"
-export CLAUDE_MODEL_OPUS_ANTHROPIC="claude-opus-4-1-20250805"
-export CLAUDE_MODEL_HAIKU_ANTHROPIC="claude-haiku-4-5"
-export CLAUDE_SMALL_FAST_MODEL_ANTHROPIC="claude-haiku-4-5"
-
-# Microsoft Foundry/Azure (deployment names)
-export CLAUDE_MODEL_SONNET_AZURE="claude-sonnet-4-5"
-export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-1"
-export CLAUDE_MODEL_HAIKU_AZURE="claude-haiku-4-5"
-export CLAUDE_SMALL_FAST_MODEL_AZURE="claude-haiku-4-5"
-```
-
-These variables are used by the scripts to set `ANTHROPIC_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL` at runtime based on which provider you're using.
-
-### Model Configuration: Main + Small/Fast Models
-
-Claude Code uses **two models** for optimal performance and cost efficiency:
-
-1. **`ANTHROPIC_MODEL`** - Your main model for interactive work
-   - Used for conversation, reasoning, and complex tasks
+1. **`ANTHROPIC_MODEL`** - Main model for interactive work (conversation, reasoning, complex tasks)
    - Set via `--sonnet`, `--opus`, `--haiku` flags or `--model` override
-   - Examples: Sonnet 4.5, Opus 4.1, Haiku 4.5
-
-2. **`ANTHROPIC_SMALL_FAST_MODEL`** - Background operations model  
-   - Used for sub-agents, file operations, and auxiliary tasks
-   - **Defaults to Haiku** for each provider
-   - Reduces costs for background work
+   
+2. **`ANTHROPIC_SMALL_FAST_MODEL`** - Background operations model (sub-agents, file operations)  
+   - Defaults to Haiku for each provider to reduce costs
    - See [Claude Code docs](https://code.claude.com/docs/en/model-config#environment-variables)
 
-**How It Works:**
+**Configuration Pattern:**
 
-Both models follow the **same configuration pattern**:
-
-- **Defaults** in `config/models.sh`:
+- **Defaults**: Set in `config/models.sh` (e.g., `CLAUDE_SMALL_FAST_MODEL_AWS` defaults to Haiku)
+- **Overrides**: Customize in `~/.claude-switcher/secrets.sh`:
   ```bash
-  export CLAUDE_SMALL_FAST_MODEL_AWS="${CLAUDE_SMALL_FAST_MODEL_AWS:-${CLAUDE_MODEL_HAIKU_AWS}}"
-  export CLAUDE_SMALL_FAST_MODEL_VERTEX="${CLAUDE_SMALL_FAST_MODEL_VERTEX:-${CLAUDE_MODEL_HAIKU_VERTEX}}"
-  ```
-
-- **Overrides** in `~/.claude-switcher/secrets.sh`:
-  ```bash
-  # Use a custom small/fast model for AWS
+  # Example: Use custom small/fast model for AWS
   export CLAUDE_SMALL_FAST_MODEL_AWS="us.anthropic.claude-3-5-haiku-20241022-v1:0"
   ```
-
-- **Runtime**: Scripts set `ANTHROPIC_SMALL_FAST_MODEL` from the appropriate provider variable
+- **Runtime**: Scripts automatically set `ANTHROPIC_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL` based on provider
 
 **Example:**
 ```bash
 claude-aws --opus
 # Sets: ANTHROPIC_MODEL = Opus 4.1 (your choice)
-#       ANTHROPIC_SMALL_FAST_MODEL = Haiku 4.5 (auto, from CLAUDE_SMALL_FAST_MODEL_AWS)
+#       ANTHROPIC_SMALL_FAST_MODEL = Haiku 4.5 (auto)
 ```
 
-### Updating to New Models
-When new Claude models are released:
+### Updating Models and Secrets
+
+When new Claude models are released, update with:
 
 ```bash
 cd claude-switcher
@@ -537,76 +374,69 @@ git pull
 ./setup.sh
 ```
 
-The setup script will update all commands with the latest model definitions while preserving your API keys in `~/.claude-switcher/secrets.sh`.
-
-### Secrets
-Credentials are stored in `~/.claude-switcher/secrets.sh`. This file is not committed to the repository and is safe for your private keys.
+Setup preserves your API keys in `~/.claude-switcher/secrets.sh`. Your credentials are stored separately in `~/.claude-switcher/secrets.sh` and are never committed to the repository.
 
 ## Troubleshooting
 
-### Verify apiKeyHelper Setup
+### Verify Configuration
 
-Check if the API key helper is properly configured:
-
-```bash
-claude-status
-```
-
-This will show:
-- Whether `settings.json` has `apiKeyHelper` configured
-- Whether the helper script exists and is executable
-- Your current switcher mode (`pro`, `anthropic`, etc.)
-
-### Check Current Mode
-
-View your current mode (if a switcher script is running):
+Check your current configuration:
 
 ```bash
-cat ~/.claude-switcher/current-mode.sh
+claude-status  # Shows authentication, mode, and configuration
+cat ~/.claude-switcher/current-mode.sh  # Current provider mode
 ```
 
-Should show something like:
-```bash
-export CLAUDE_SWITCHER_MODE="pro"
-# or
-export CLAUDE_SWITCHER_MODE="anthropic"
-```
+### Common Issues
+
+**Still getting rate limits after switching to API?**
+
+1. Verify API key: `grep ANTHROPIC_API_KEY ~/.claude-switcher/secrets.sh`
+2. Confirm you're using the wrapper (not plain `claude`)
+3. Run `claude-status` during the session
+4. In Claude, run `/status` to see authentication method
+
+**Switching back to Pro not working?**
+
+1. Make sure you're running `claude-pro` (creates new session)
+2. Or use plain `claude` (always native state)
+3. In Claude, run `/status` to verify authentication
+
+> **Remember**: Wrapper scripts are session-scoped. Each time you want Anthropic API, run `claude-apikey`. After exiting any wrapper, plain `claude` returns to native state.
 
 ### Session-Scoped Behavior
 
-**Important**: All wrapper scripts are session-scoped:
+All wrapper scripts are session-scoped:
 - Changes only affect the active Claude session
-- On exit, original settings are automatically restored
+- On exit, original settings automatically restore
 - Plain `claude` always runs in native state
 
-To verify native state:
+Verify native state:
 ```bash
-# Exit any active claude-apikey or claude-pro session
-# Then check settings
+# Exit any active session, then check:
 cat ~/.claude/settings.json
-# Should show your original apiKeyHelper (or no apiKeyHelper if you never had one)
+# Should show your original apiKeyHelper (or none if you never had one)
 ```
 
-### Manually Reset (Emergency Only)
+### Manual Reset (Emergency Only)
 
-If something goes wrong and you need to reset:
+If something goes wrong:
 
 ```bash
 # Remove state files
 rm -f ~/.claude-switcher/apiKeyHelper-state-*.tmp
 
-# Check your settings
+# Check settings
 cat ~/.claude/settings.json
 
-# If apiKeyHelper points to our script when it shouldn't:
-# Restore from backup
+# Restore from backup if needed
 ls ~/.claude/settings.json.backup-*
 cp ~/.claude/settings.json.backup-YYYYMMDD-HHMMSS ~/.claude/settings.json
 ```
 
-### Test apiKeyHelper Directly
+### Test apiKeyHelper
 
-Verify the helper script works:
+Verify the helper script:
 
 ```bash
 # Test in Pro mode (should output nothing)
@@ -617,27 +447,6 @@ echo 'export CLAUDE_SWITCHER_MODE="pro"' > ~/.claude-switcher/current-mode.sh
 echo 'export CLAUDE_SWITCHER_MODE="anthropic"' > ~/.claude-switcher/current-mode.sh 
 ~/.claude-switcher/claude-api-key-helper.sh
 ```
-
-### Still Getting Rate Limits After Switching?
-
-If you switch from Pro to `claude-apikey` but still see Pro plan rate limits:
-
-1. Verify API key is set: `grep ANTHROPIC_API_KEY ~/.claude-switcher/secrets.sh`
-2. Check you're using the wrapper: Make sure you ran `claude-apikey` (not plain `claude`)
-3. Run `claude-status` during the session to verify configuration
-4. In the Claude session, run `/status` to see authentication method
-
-**Remember**: The wrapper only affects the current session. Each time you want Anthropic API, run `claude-apikey`.
-
-### Switching Back to Pro Not Working?
-
-If web authentication doesn't activate after running `claude-pro`:
-
-1. Make sure you're running `claude-pro` (creates new session)
-2. OR just use plain `claude` (always native state)
-3. In Claude session, run `/status` to verify authentication method
-
-**Remember**: After exiting ANY wrapper script, plain `claude` returns to native state automatically.
 
 ## Versioning
 
@@ -657,40 +466,30 @@ git push origin main && git push origin vx.y.z
 
 ## Support This Project
 
-**Claude Switcher is free and open source**, built with ❤️ to help developers be more productive and save money with Claude Code.
-
-If you find this tool valuable, here's how you can support its development:
+Claude Switcher is **free and open source**, built to help developers be more productive and save money with Claude Code.
 
 ### ⭐ Star This Repo
-The simplest way to show your support is to **[give us a star on GitHub](https://github.com/andisearch/claude-switcher)**! It helps others discover the project.
+The simplest way to show your support is to **[give us a star on GitHub](https://github.com/andisearch/claude-switcher)**!
 
 [![GitHub Stars](https://img.shields.io/github/stars/andisearch/claude-switcher?style=social)](https://github.com/andisearch/claude-switcher/stargazers)
 
 ### 💖 Donate
-Your financial support not only helps us to maintain this project but also to build Andi AI search and keep it free. These scripts help us save a lot of time and money, and we hope they'll help you too!
+Your support helps us maintain this project and build [Andi AI search](https://andisearch.com).
 
-**Choose your preferred platform:**
-
-- 🩷 **[GitHub Sponsors](https://github.com/sponsors/andisearch)** - Recurring or one-time support
-- ☕ **[Buy Me a Coffee](https://buymeacoffee.com/andisearch)** - Quick one-time donation
-- 💙 **[PayPal](https://www.paypal.me/lazywebai)** - Direct donation via PayPal
-
-> Every contribution, no matter the size, makes a real difference. Thank you for considering supporting our work! 🙏
+- 🩷 **[GitHub Sponsors](https://github.com/sponsors/andisearch)** - Recurring or one-time
+- ☕ **[Buy Me a Coffee](https://buymeacoffee.com/andisearch)** - Quick one-time
+- 💙 **[PayPal](https://www.paypal.me/lazywebai)** - Direct donation
 
 ### 🤝 Other Ways to Help
-- **Share**: Tell your colleagues and friends about Claude Switcher
-- **Contribute**: Submit bug reports, feature requests, or pull requests
-- **Feedback**: Let us know how you're using Claude Switcher and how we can improve it
+- **Share** with colleagues and friends
+- **Contribute** via bug reports, feature requests, or pull requests
+- **Feedback** on how you're using it and how we can improve
 
 ## Acknowledgments
 
-Thanks to the team at Anthropic for creating the awesome Claude Code, the fantastic Sonnet, Opus and Haiku models, and for their open source tools. Their efforts to support the open source community, and to make their models available across cloud providers are greatly appreciated.
+Thanks to the team at Anthropic for creating the awesome Claude Code, the fantastic Sonnet, Opus and Haiku models, and for their open source tools. We are not associated with Anthropic in any way, other than being big fans of Claude Code.
 
-We are not associated with Anthropic in any way, other than being big fans of Claude Code.
-
-Huge thanks also to the Startups teams at Microsoft Azure, AWS and Google Cloud for their generous support of Andi and startups in general. 
-
-And very special thanks to Britton Winterrose and Ryan Merket at Microsoft for going above and beyond to help keep Andi running! Without their support this project would not be possible.
+Huge thanks also to the Startups teams at Microsoft Azure, AWS and Google Cloud for their generous support of Andi and startups in general. And very special thanks to Britton Winterrose and Ryan Merket at Microsoft for going above and beyond to help keep Andi running! Without their support this project would not be possible.
 
 ## Authors
 
