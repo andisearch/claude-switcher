@@ -70,7 +70,7 @@ That's it! See below for detailed configuration options and advanced features.
 ## Features
 
 - **Multiple Providers**: Support for Anthropic API, AWS Bedrock, Google Vertex AI, and Microsoft Foundry on Azure.
-- **Model Switching**: Easily switch between Sonnet 4.5, Opus 4.1, Haiku 4.5, or custom models.
+- **Model Switching**: Easily switch between Sonnet 4.5, Opus 4.5, Haiku 4.5, or custom models.
 - **Pro Plan Support**: Toggle back to standard Claude Pro or Max subscriptions with native web authentication.
 - **Seamless Switching**: Switch between providers and authentication methods without logout flows.
 - **Session Management**: Unique session IDs for tracking.
@@ -253,7 +253,7 @@ Once installed, use these commands from any terminal window:
 # Use default model (Sonnet 4.5 - latest)
 claude-aws
 
-# Use Opus 4.1 (most capable for planning and reasoning)
+# Use Opus 4.5 (most capable for planning and reasoning)
 claude-vertex --opus
 
 # Use Haiku 4.5 (fastest, most cost-effective)
@@ -364,7 +364,7 @@ Claude Code uses **two models** for optimal performance:
 **Example:**
 ```bash
 claude-aws --opus
-# Sets: ANTHROPIC_MODEL = Opus 4.1 (your choice)
+# Sets: ANTHROPIC_MODEL = Opus 4.5 (your choice)
 #       ANTHROPIC_SMALL_FAST_MODEL = Haiku 4.5 (auto)
 ```
 

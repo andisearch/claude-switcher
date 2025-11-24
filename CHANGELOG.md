@@ -5,6 +5,17 @@ All notable changes to claude-switcher will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-11-24
+
+### Changed
+- **Model Update**: Updated default Claude Opus model from 4.1 to 4.5 across all providers
+  - AWS Bedrock: `global.anthropic.claude-opus-4-5-20251101-v1:0`
+  - Google Vertex AI: `claude-opus-4-5@20251101`
+  - Anthropic API: `claude-opus-4-5-20251101`
+  - Microsoft Azure Foundry: `claude-opus-4-5`
+- Updated `config/models.sh` with new Opus 4.5 model identifiers
+- Updated `secrets.example.sh` model override examples to reflect Opus 4.5
+
 ## [1.0.6] - 2025-11-23
 
 ### Changed
