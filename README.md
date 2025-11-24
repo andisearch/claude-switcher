@@ -1,10 +1,12 @@
 # Claude Switcher
 
-A collection of scripts to easily switch between different authentication modes and providers for [Claude Code](https://claude.ai/code).
+A collection of scripts to easily switch between different authentication modes and model providers for [Claude Code](https://claude.ai/code).
 
-Never get stopped by rate limits again!
+Never get stopped by rate limits again! Jump between your Claude Pro/Max subscription and API keys from Anthropic, AWS, Google Cloud and now Microsoft Azure on the fly and pick up where you left off.
 
-Brought to you by [Andi AI](https://andisearch.com).
+BONUS: Startups can use their compute credits across multiple clouds to run Claude Code; either as a companion to their subscription or purely with API keys.
+
+Claude Switcher is brought to you by the team from [Andi AI](https://andisearch.com).
 
 ## Features
 
@@ -596,6 +598,16 @@ git commit -m "Bump version to x.y.z"
 git tag -a vx.y.z -m "Release vx.y.z: Description"
 git push origin main && git push origin vx.y.z
 ```
+
+## Acknowledgments
+
+Thanks to the team at Anthropic for creating the awesome Claude Code, the fantastic Sonnet, Opus and Haiku models, and for their open source tools. Their efforts to support the open source community, and to make their models available across cloud providers are greatly appreciated.
+
+We are not associated with Anthropic in any way, other than being big fans of Claude Code.
+
+Huge thanks also to the Startups teams at Microsoft Azure, AWS and Google Cloud for their generous support of Andi and startups in general. 
+
+And very special thanks to Britton Winterrose and Ryan Merket at Microsoft for going above and beyond to help keep Andi running! Without their support this project would not be possible.
 
 ## Authors
 
