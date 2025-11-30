@@ -37,7 +37,7 @@ save_api_key_helper_state
 # Temporarily remove apiKeyHelper for this Pro session
 # This allows using Pro subscription even if user normally uses API key
 if is_api_key_helper_configured; then
-    print_status "Temporarily disabling apiKeyHelper for Pro session...\"
+    print_status "Temporarily disabling apiKeyHelper for Pro session..."
     # Backup before removing
     cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup-$(date +%Y%m%d-%H%M%S)"
     
