@@ -24,7 +24,7 @@ echo ""
 if [ ! -d "$SESSIONS_DIR" ] || [ -z "$(ls -A "$SESSIONS_DIR" 2>/dev/null)" ]; then
     print_status "No active Claude sessions found"
     echo ""
-    print_status "Sessions started with claude-pro, claude-aws, claude-vertex, claude-apikey, or claude-azure will appear here"
+    print_status "Sessions started with claude-pro, claude-aws, claude-vertex, claude-apikey, claude-azure, or claude-vercel will appear here"
     echo ""
     print_status "Commands:"
     print_status "  claude-status   - Show current terminal's Claude configuration"

@@ -155,8 +155,14 @@ echo ""
 
 # Detect current authentication mode
 mode="Unknown"
+
+# Debug Vercel Check
+# echo "DEBUG: URL=$ANTHROPIC_BASE_URL TOKEN=${ANTHROPIC_AUTH_TOKEN:0:5}..."
+
 if [ "$CLAUDE_CODE_USE_BEDROCK" = "1" ] && [ -n "$AWS_BEARER_TOKEN_BEDROCK" ]; then
     mode="AWS Bedrock"
+elif [ -n "$ANTHROPIC_BASE_URL" ] && [[ "$ANTHROPIC_BASE_URL" == *"vercel"* ]] && [ -n "$ANTHROPIC_AUTH_TOKEN" ]; then
+    mode="Vercel AI Gateway"
 elif [ -n "$ANTHROPIC_API_KEY" ] && [ "$CLAUDE_CODE_USE_BEDROCK" != "1" ]; then
     mode="Anthropic API"
 elif [ -n "$GOOGLE_CLOUD_PROJECT" ] || [ -n "$GOOGLE_LOCATION" ]; then
@@ -224,6 +230,20 @@ case "$mode" in
         print_status "  - Login/logout disabled"
         print_status "  - Direct access to Anthropic models"
         ;;
+
+    "Vercel AI Gateway")
+        print_status "Vercel AI Gateway Configuration:"
+        print_status "  CLAUDE_CODE_USE_BEDROCK: ${CLAUDE_CODE_USE_BEDROCK:-0}"
+        print_status "  ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-not set}"
+        print_status "  ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:+set (hidden)}"
+        print_status "  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-empty (required)}"
+        print_status "  ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-not set}"
+        echo ""
+        print_status "Features:"
+        print_status "  - API authentication via Vercel AI Gateway"
+        print_status "  - Automatic failover and unified billing"
+        print_status "  - Login/logout disabled"
+        ;;
     
     "Claude Pro Plan"|"Default (likely Claude Pro Plan)")
         print_status "Claude Pro Plan Configuration:"
@@ -242,6 +262,7 @@ print_status "  claude-pro          - Switch to Claude Pro Plan mode"
 print_status "  claude-aws          - Switch to AWS Bedrock mode"
 print_status "  claude-vertex       - Switch to Google Vertex AI mode"
 print_status "  claude-apikey    - Switch to Anthropic API mode"
+print_status "  claude-vercel       - Switch to Vercel AI Gateway mode"
 print_status "  claude-status       - Show current configuration"
 print_status "  claude-sessions     - List active Claude sessions"
 echo ""

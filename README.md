@@ -317,6 +317,7 @@ claude-status
 - **AWS Bedrock**: Shows region, API token status, model settings, and output token limits
 - **Vertex AI**: Shows GCP project, location, authentication status, and active gcloud account
 - **Anthropic API**: Shows API key status and model configuration
+- **Vercel AI Gateway**: Shows base URL, auth token status, and model configuration
 - **Claude Pro**: Shows when using default web authentication
 
 **Example output (Anthropic API mode):**
