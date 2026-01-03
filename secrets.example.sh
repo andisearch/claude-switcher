@@ -105,6 +105,11 @@
 # export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-5"
 # export CLAUDE_MODEL_HAIKU_AZURE="claude-haiku-4-5"
 
+# Vercel AI Gateway Models
+# export CLAUDE_MODEL_SONNET_VERCEL="anthropic/claude-sonnet-4.5"
+# export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4"
+# export CLAUDE_MODEL_HAIKU_VERCEL="anthropic/claude-haiku-4.5"
+
 # ============================================================================
 # Small/Fast Model Overrides (Optional)
 # ============================================================================
@@ -123,3 +128,6 @@
 
 # Microsoft Foundry/Azure Small/Fast Model (deployment name)
 # export CLAUDE_SMALL_FAST_MODEL_AZURE="claude-haiku-4-5"
+
+# Vercel AI Gateway Small/Fast Model
+# export CLAUDE_SMALL_FAST_MODEL_VERCEL="anthropic/claude-haiku-4.5"

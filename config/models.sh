@@ -49,7 +49,7 @@ export CLAUDE_MODEL_HAIKU_AZURE="${CLAUDE_MODEL_HAIKU_AZURE:-claude-haiku-4-5}"
 # Uses format: anthropic/model-name (no date suffix)
 export CLAUDE_MODEL_SONNET_VERCEL="${CLAUDE_MODEL_SONNET_VERCEL:-anthropic/claude-sonnet-4.5}"
 export CLAUDE_MODEL_OPUS_VERCEL="${CLAUDE_MODEL_OPUS_VERCEL:-anthropic/claude-opus-4}"
-export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-3.5-haiku}"
+export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-haiku-4.5}"
 
 # Small/Fast Model Defaults (for background operations)
 # These are used by Claude Code for sub-agents, file operations, and auxiliary tasks
