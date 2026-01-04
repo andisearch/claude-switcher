@@ -12,7 +12,9 @@ Use Claude via shebang support in executable markdown files. Switch between Clau
 - Run any script with `claude-run <script>.md`
 - Non-destructive: Plain `claude` always works normally—switcher only affects its own sessions
 
-From [Andi AI](https://andisearch.com). [Star this repo ⭐](https://github.com/andisearch/claude-switcher) if it helps!
+From [Andi AI](https://andisearch.com). 
+
+[Star this repo ⭐](https://github.com/andisearch/claude-switcher) if it helps!
 
 ## Quick Start
 
