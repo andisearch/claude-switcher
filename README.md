@@ -2,20 +2,17 @@
 
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-pink?logo=github&style=for-the-badge)](https://github.com/sponsors/andisearch)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Support-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/andisearch)
-[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue?logo=paypal&style=for-the-badge)](https://www.paypal.me/lazywebai)
 [![GitHub Stars](https://img.shields.io/github/stars/andisearch/claude-switcher?style=for-the-badge&logo=github)](https://github.com/andisearch/claude-switcher/stargazers)
 
-Switch between Claude Code providers (Pro/Max, Anthropic API, AWS, Google Cloud, Azure, Vercel) with a single command. Hit rate limits? Continue on your API keys. Need Opus without Max? Use any provider.
+Use Claude via shebang support in executable markdown files. Switch between Claude Code providers (Pro/Max, Anthropic API, AWS, Google Cloud, Azure, Vercel) with a single command. Hit rate limits? Continue on your API keys without `/logout`. Need Opus without Max? Use any provider.
 
 **Key features:**
-- **Provider switching**: `claude-run --aws --opus` or `claude-run --vertex --resume`
-- **Executable markdown**: `#!/usr/bin/env claude-run` shebang for AI-powered scripts
-- **Non-destructive**: Plain `claude` always works normally—switcher only affects its own sessions
+- Provider switching: `claude-run --aws --opus` or `claude-run --vertex --resume`
+- Executable markdown: `#!/usr/bin/env claude-run` shebang for AI-powered scripts
+- Run any script with `claude-run <script>.md`
+- Non-destructive: Plain `claude` always works normally—switcher only affects its own sessions
 
-From [Andi AI](https://andisearch.com).
-
-> [!TIP]
-> ⭐ **[Star this repo](https://github.com/andisearch/claude-switcher)** if it helps! [Buy us a coffee](https://buymeacoffee.com/andisearch) or [sponsor on GitHub](https://github.com/sponsors/andisearch).
+From [Andi AI](https://andisearch.com). [Star this repo ⭐](https://github.com/andisearch/claude-switcher) if it helps!
 
 ## Quick Start
 
@@ -25,18 +22,44 @@ From [Andi AI](https://andisearch.com).
 # Install
 git clone https://github.com/andisearch/claude-switcher.git
 cd claude-switcher && ./setup.sh
+```
 
-# Configure at least one provider (e.g., AWS)
-echo 'export AWS_PROFILE="my-profile"' >> ~/.claude-switcher/secrets.sh
-echo 'export AWS_REGION="us-west-2"' >> ~/.claude-switcher/secrets.sh
+**That's it!** You can now run any markdown file as a Claude script:
 
-# Use it
-claude-run --aws              # Use AWS Bedrock
-claude-run --aws --opus       # With Opus 4.5
-claude-run --aws --resume     # Resume conversation
+```bash
+# Create an executable prompt
+cat > task.md << 'EOF'
+#!/usr/bin/env claude-run
+Analyze my codebase and summarize the architecture.
+EOF
 
-# Plain claude is always unaffected
-claude                        # Your normal Claude setup
+chmod +x task.md
+./task.md                         # Runs with your Claude subscription
+```
+
+Or run any markdown file directly:
+```bash
+claude-run task.md
+```
+
+### Optional: Configure Providers
+
+To switch between providers (AWS, Vertex, etc.) or use API keys:
+
+```bash
+# Edit secrets file
+nano ~/.claude-switcher/secrets.sh
+
+# Example: Add AWS credentials
+export AWS_PROFILE="my-profile"
+export AWS_REGION="us-west-2"
+```
+
+Then use provider flags:
+```bash
+claude-run --aws task.md          # Run via AWS Bedrock
+claude-run --aws --opus           # Interactive with Opus 4.5
+claude-run --vertex --resume      # Resume via Vertex AI
 ```
 
 See [Provider Setup](#provider-setup) for all providers and [Usage](#usage) for full options.
@@ -67,10 +90,12 @@ Removes all commands from `/usr/local/bin`, prompts before removing configuratio
 
 ## Provider Setup
 
-The secrets file at `~/.claude-switcher/secrets.sh` stores your API credentials. Edit it to add your provider keys:
+Configure providers by adding credentials to `~/.claude-switcher/secrets.sh`, then use `claude-run` with provider flags:
 
 ```bash
-nano ~/.claude-switcher/secrets.sh
+nano ~/.claude-switcher/secrets.sh   # Add credentials
+claude-run --aws task.md             # Use AWS Bedrock
+claude-run --vertex --opus           # Interactive Vertex AI with Opus
 ```
 
 ### AWS Bedrock
@@ -83,43 +108,39 @@ export AWS_PROFILE="your-profile-name"
 export AWS_REGION="us-west-2"
 ```
 
-> **Note**: Alternatives include `AWS_BEARER_TOKEN_BEDROCK` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. `AWS_REGION` is required.
+Alternatives: `AWS_BEARER_TOKEN_BEDROCK` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. `AWS_REGION` is required.
 
 ### Google Vertex AI
 
-**Setup:**
-1. **Install Google Cloud SDK**: [Download here](https://cloud.google.com/sdk/docs/install)
-2. **Authenticate** using one of these methods (checked in precedence order):
-   - **Service Account Key** (production/CI): `export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"`
-   - **Application Default Credentials** (local dev): `gcloud auth application-default login`
-   - **gcloud User Credentials** (fallback): `gcloud auth login`
-3. **Enable Vertex AI API**: [Click to enable](https://console.cloud.google.com/flows/enableapi?apiid=aiplatform.googleapis.com)
-4. **Enable Claude Models**: [Open Model Garden](https://console.cloud.google.com/vertex-ai/model-garden/) and enable desired models under the Anthropic publisher
-5. **Configure secrets.sh**:
+1. Install [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+2. Authenticate (checked in precedence order):
+   - Service Account Key (production/CI): `export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"`
+   - Application Default Credentials (local dev): `gcloud auth application-default login`
+   - gcloud User Credentials (fallback): `gcloud auth login`
+3. [Enable Vertex AI API](https://console.cloud.google.com/flows/enableapi?apiid=aiplatform.googleapis.com)
+4. Enable Claude models in [Model Garden](https://console.cloud.google.com/vertex-ai/model-garden/) under the Anthropic publisher
+5. Configure secrets.sh:
    ```bash
    export ANTHROPIC_VERTEX_PROJECT_ID="your-gcp-project-id"
    export CLOUD_ML_REGION="global"
    ```
 
-See Anthropic's [Google Vertex instructions](https://code.claude.com/docs/en/google-vertex-ai) for more details.
-
-> **Note**: Models are region-specific. Check [availability](https://console.cloud.google.com/vertex-ai/model-garden/) in your region. Optionally set per-model regions with `VERTEX_REGION_CLAUDE_4_5_SONNET` etc.
+See Anthropic's [Vertex AI instructions](https://code.claude.com/docs/en/google-vertex-ai) for details. Models are region-specific; optionally set per-model regions with `VERTEX_REGION_CLAUDE_4_5_SONNET` etc.
 
 ### Anthropic API
-
-> **Note**: When using `claude-apikey`, your API key is validated but NOT exported as an environment variable to avoid authentication conflicts. The `apiKeyHelper` script reads the key directly from `secrets.sh` and provides it to Claude CLI as a token. This ensures only one authentication method is active.
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
+Interactive sessions use `apiKeyHelper` to provide your key without exporting it as an environment variable, avoiding authentication conflicts.
+
 ### Microsoft Azure
 
-**Setup:**
-1. Navigate to [Microsoft Foundry portal](https://ai.azure.com/) and create an Azure resource
+1. Create an Azure resource in [Microsoft Foundry portal](https://ai.azure.com/)
 2. Deploy Claude models (Opus, Sonnet, and/or Haiku)
-3. Get credentials from your resource's "Endpoints and keys" section
-4. **Configure secrets.sh**:
+3. Get credentials from "Endpoints and keys"
+4. Configure secrets.sh:
    ```bash
    # Option 1: API Key (simpler)
    export ANTHROPIC_FOUNDRY_API_KEY="your-azure-api-key"
@@ -129,26 +150,21 @@ export ANTHROPIC_API_KEY="sk-ant-..."
    export ANTHROPIC_FOUNDRY_RESOURCE="your-resource-name"
    ```
 
-See Anthropic's [Microsoft Foundry instructions](https://code.claude.com/docs/en/microsoft-foundry) for more details.
-
-> **Note**: Use the default deployment names or set custom names to match what you created in Azure: `CLAUDE_MODEL_SONNET_AZURE`, `CLAUDE_MODEL_HAIKU_AZURE`, `CLAUDE_MODEL_OPUS_AZURE`.
+See Anthropic's [Foundry instructions](https://code.claude.com/docs/en/microsoft-foundry) for details. Set custom deployment names with `CLAUDE_MODEL_SONNET_AZURE`, `CLAUDE_MODEL_HAIKU_AZURE`, `CLAUDE_MODEL_OPUS_AZURE`.
 
 ### Vercel AI Gateway
 
-Routes through Vercel for failover and unified billing. [Docs](https://vercel.com/ai-gateway)
+Routes through Vercel for failover and unified billing.
 
-**Setup:**
-1. Create a Vercel account and go to [AI Gateway settings](https://vercel.com/dashboard/~/ai)
+1. Go to [AI Gateway settings](https://vercel.com/dashboard/~/ai)
 2. Generate an API key (starts with `vck_`)
-3. **Configure secrets.sh**:
+3. Configure secrets.sh:
    ```bash
    export VERCEL_AI_GATEWAY_TOKEN="vck_..."
-   export VERCEL_AI_GATEWAY_URL="https://ai-gateway.vercel.sh"  # Optional, this is the default
+   export VERCEL_AI_GATEWAY_URL="https://ai-gateway.vercel.sh"  # Optional default
    ```
 
-See [Vercel AI Gateway docs](https://vercel.com/ai-gateway) for more details.
-
-> **Note**: Vercel AI Gateway provides automatic failover (e.g., to AWS Bedrock) and unified billing across all AI providers.
+See [Vercel AI Gateway docs](https://vercel.com/ai-gateway) for details.
 
 #### Overriding Defaults (Optional)
 You can override default model IDs or regions in the same `secrets.sh` file. This is useful for testing new models or using custom endpoints.
@@ -161,7 +177,7 @@ export CLAUDE_MODEL_SONNET_AWS="global.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 ## Switching Providers to Avoid Rate Limits
 
-**This is the killer feature.** Claude Pro has rate limits that reset every 5 hours (daily) and 7 days (weekly). When you hit a limit mid-task, instantly switch to your API keys and keep working.
+Claude Pro has rate limits that reset every 5 hours (daily) and 7 days (weekly). When you hit a limit mid-task, switch to your API keys and keep working.
 
 ### Quick Switch with `--resume`
 
@@ -194,9 +210,9 @@ claude --resume              # Back to Pro when limits reset
 
 ### Why This Works
 
-- **Claude Pro**: Great for normal work, limited (10-40 prompts per 5-hour window)
-- **Your API**: Unlimited usage, pay per token, use cloud credits
-- **Instant switching**: One command, same conversation, no friction
+- Claude Pro: Included with subscription, rate-limited (10-40 prompts per 5-hour window)
+- Your API: Pay per token, no rate limits, use cloud credits
+- One command switches provider, same conversation
 
 
 ## Usage
@@ -273,18 +289,18 @@ Command-line flags override any flags specified in the shebang line.
 
 ### Individual Provider Scripts
 
-For more control, use provider-specific scripts:
+Direct scripts are available for backward compatibility or workflows that prefer explicit commands:
 
-| Provider | Script | Example |
-|----------|--------|---------|
-| AWS Bedrock | `claude-aws` | `claude-aws --opus --resume` |
-| Google Vertex AI | `claude-vertex` | `claude-vertex --haiku` |
-| Anthropic API | `claude-apikey` | `claude-apikey --model claude-opus-4-5-20250929` |
-| Microsoft Azure | `claude-azure` | `claude-azure --sonnet` |
-| Vercel AI Gateway | `claude-vercel` | `claude-vercel` |
-| Claude Pro/Max | `claude-pro` | `claude-pro` |
+| Provider | Script | Equivalent |
+|----------|--------|-----------|
+| AWS Bedrock | `claude-aws` | `claude-run --aws` |
+| Google Vertex AI | `claude-vertex` | `claude-run --vertex` |
+| Anthropic API | `claude-apikey` | `claude-run --apikey` |
+| Microsoft Azure | `claude-azure` | `claude-run --azure` |
+| Vercel AI Gateway | `claude-vercel` | `claude-run --vercel` |
+| Claude Pro/Max | `claude-pro` | `claude-run --pro` |
 
-These scripts handle authentication, environment setup, and session tracking automatically.
+All scripts support the same flags (`--opus`, `--haiku`, `--resume`, etc.) and handle authentication, environment setup, and session tracking automatically.
 
 ### Utilities
 
