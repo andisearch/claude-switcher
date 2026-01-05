@@ -8,7 +8,7 @@ Use Claude via shebang support in executable markdown files. Switch between Clau
 
 **Key features:**
 - Provider switching: `claude-run --aws --opus` or `claude-run --vertex --resume`
-- Executable markdown: `#!/usr/bin/env claude-run` shebang for AI-powered scripts
+- Executable markdown: `#!/usr/bin/env claude-run` shebang for AI-powered scripts ([thanks to Pete Kooman](https://x.com/koomen/status/2007894999506235409?s=20))
 - Run any script with `claude-run <script>.md`
 - Non-destructive: Plain `claude` always works normally—switcher only affects its own sessions
 
@@ -525,6 +525,10 @@ Your support helps us maintain this project and build [Andi AI search](https://a
 - **Feedback** on how you're using it and how we can improve
 
 ## Acknowledgments
+
+Thanks to [Pete Kooman](https://x.com/koomen/status/2007894999506235409?s=20) from YC for the great idea of executable markdown! Pete's insight was spot-on: executable prompts become reusable tools. Put them in your repo. Run them in CI. Chain them together. Share them with your team. A prompt that lives in a file is a prompt you'll actually use again.
+
+Thanks to Reddit user ([apf6](https://www.reddit.com/user/apf6/)) for the minimal alternative script suggestion for shebang support for Claude.
 
 Thanks to the team at Anthropic for creating the awesome Claude Code, the fantastic Sonnet, Opus and Haiku models, and for their open source tools. We are not associated with Anthropic in any way, other than being big fans of Claude Code.
 
