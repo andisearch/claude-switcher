@@ -107,7 +107,7 @@
 
 # Vercel AI Gateway Models
 # export CLAUDE_MODEL_SONNET_VERCEL="anthropic/claude-sonnet-4.5"
-# export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4"
+# export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4.5"
 # export CLAUDE_MODEL_HAIKU_VERCEL="anthropic/claude-haiku-4.5"
 
 # ============================================================================

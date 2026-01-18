@@ -70,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides automatic failover (e.g., to AWS Bedrock)
   - Unified billing and spend management across all AI providers
   - Uses `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` per [rauchg's announcement](https://x.com/rauchg/status/2007556249437778419)
-- Vercel-specific model identifiers: `anthropic/claude-sonnet-4.5`, `anthropic/claude-opus-4`, `anthropic/claude-haiku-4.5`
+- Vercel-specific model identifiers: `anthropic/claude-sonnet-4.5`, `anthropic/claude-opus-4.5`, `anthropic/claude-haiku-4.5`
 - New configuration options: `VERCEL_AI_GATEWAY_TOKEN` and `VERCEL_AI_GATEWAY_URL`
 
 ## [1.0.8] - 2025-12-04
