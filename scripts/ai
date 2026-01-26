@@ -1,0 +1,467 @@
+#!/bin/bash
+
+# ai - Universal AI Prompt Interpreter
+#
+# The unified entry point for AI Runner. Supports multiple AI tools and providers.
+#
+# Interactive mode:
+#   ai                          # Auto-detect tool and provider
+#   ai --aws --opus             # Claude Code via AWS Bedrock
+#   ai --tool cc --ollama       # Claude Code via Ollama (local)
+#
+# Shebang mode:
+#   ai prompt.md                # Execute markdown file
+#   #!/usr/bin/env ai           # In markdown file
+#
+# Piped mode:
+#   curl URL | ai               # Execute remote prompt
+#   echo "prompt" | ai          # Execute piped content
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/lib"
+
+# Set branding for AI Runner
+export AI_RUNNER_BRAND="AI Runner"
+
+# Set PROVIDER_DIR and TOOL_DIR for loaders
+export PROVIDER_DIR="$(cd "$SCRIPT_DIR/../providers" 2>/dev/null && pwd)"
+export TOOL_DIR="$(cd "$SCRIPT_DIR/../tools" 2>/dev/null && pwd)"
+
+# Source core utilities
+source "$LIB_DIR/core-utils.sh"
+
+# Source loaders
+source "$LIB_DIR/provider-loader.sh"
+source "$LIB_DIR/tool-loader.sh"
+
+# Capture stdin early if being piped to (not a TTY)
+STDIN_CONTENT=""
+if [[ ! -t 0 ]]; then
+    STDIN_CONTENT=$(cat)
+fi
+
+# Parse arguments
+TOOL_FLAG=""
+PROVIDER_FLAG=""
+MODEL_TIER=""
+CUSTOM_MODEL=""
+MD_FILE=""
+CLAUDE_ARGS=()
+NEEDS_VERBOSE=false
+STDIN_POSITION="prepend"
+SHOW_VERSION=false
+SHOW_HELP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        # Handle --output-format which requires --verbose for stream-json
+        --output-format)
+            CLAUDE_ARGS+=("$1" "$2")
+            if [[ "$2" == "stream-json" ]]; then
+                NEEDS_VERBOSE=true
+            fi
+            shift 2 ;;
+        --output-format=*)
+            CLAUDE_ARGS+=("$1")
+            if [[ "$1" == "--output-format=stream-json" ]]; then
+                NEEDS_VERBOSE=true
+            fi
+            shift ;;
+
+        # Tool selection
+        --tool)
+            TOOL_FLAG="$2"
+            shift 2 ;;
+        --tool=*)
+            TOOL_FLAG="${1#*=}"
+            shift ;;
+        --cc)
+            TOOL_FLAG="cc"
+            shift ;;
+
+        # Provider selection (existing)
+        --aws)     PROVIDER_FLAG="aws"; shift ;;
+        --vertex)  PROVIDER_FLAG="vertex"; shift ;;
+        --apikey)  PROVIDER_FLAG="apikey"; shift ;;
+        --azure)   PROVIDER_FLAG="azure"; shift ;;
+        --vercel)  PROVIDER_FLAG="vercel"; shift ;;
+        --pro)     PROVIDER_FLAG="pro"; shift ;;
+
+        # Provider selection (new)
+        --ollama)     PROVIDER_FLAG="ollama"; shift ;;
+        --openrouter|--or) PROVIDER_FLAG="openrouter"; shift ;;
+        --lmstudio)   PROVIDER_FLAG="lmstudio"; shift ;;
+        --openai)     PROVIDER_FLAG="openai"; shift ;;
+
+        # Model flags (Anthropic tier names)
+        --opus)   MODEL_TIER="high"; shift ;;
+        --sonnet) MODEL_TIER="mid"; shift ;;
+        --haiku)  MODEL_TIER="low"; shift ;;
+
+        # Model flags (universal tier aliases)
+        --high) MODEL_TIER="high"; shift ;;
+        --mid)  MODEL_TIER="mid"; shift ;;
+        --low)  MODEL_TIER="low"; shift ;;
+
+        # Custom model
+        --model)
+            CUSTOM_MODEL="$2"
+            shift 2 ;;
+        --model=*)
+            CUSTOM_MODEL="${1#*=}"
+            shift ;;
+
+        # Detect markdown file (positional argument ending in .md)
+        *.md)
+            if [[ -f "$1" ]]; then
+                MD_FILE="$1"
+            else
+                print_error "File not found: $1"
+                exit 1
+            fi
+            shift ;;
+
+        # Stdin position for piped input
+        --stdin-position)
+            STDIN_POSITION="$2"
+            if [[ "$STDIN_POSITION" != "prepend" && "$STDIN_POSITION" != "append" ]]; then
+                print_error "Invalid --stdin-position: $2 (must be 'prepend' or 'append')"
+                exit 1
+            fi
+            shift 2 ;;
+
+        # Version flag
+        --version|-v)
+            SHOW_VERSION=true
+            shift ;;
+
+        # Help flag
+        --help|-h)
+            SHOW_HELP=true
+            shift ;;
+
+        # Everything else passes through to the tool
+        *)
+            CLAUDE_ARGS+=("$1")
+            shift ;;
+    esac
+done
+
+# Handle --version
+if [[ "$SHOW_VERSION" == true ]]; then
+    echo "ai-runner v$AI_RUNNER_VERSION"
+    exit 0
+fi
+
+# Handle --help
+if [[ "$SHOW_HELP" == true ]]; then
+    cat << 'EOF'
+Usage: ai [OPTIONS] [file.md]
+
+Universal AI prompt interpreter - execute prompts across tools and providers.
+
+INTERACTIVE MODE (no .md file):
+  ai                        Auto-detect tool and provider
+  ai --aws --opus           Claude Code + AWS Bedrock + Opus
+  ai --ollama               Claude Code + local Ollama (free!)
+  ai --tool cc --vercel     Claude Code + Vercel AI Gateway
+
+SHEBANG MODE (.md file provided):
+  ai prompt.md              Execute markdown as prompt
+  ./prompt.md               With #!/usr/bin/env ai shebang
+
+PIPED MODE (stdin):
+  curl URL | ai             Execute remote markdown script
+  echo "Prompt" | ai        Execute piped content as prompt
+
+TOOL FLAGS:
+  --tool <name>   Select AI tool (default: auto-detect)
+                  Available: cc (claude-code)
+  --cc            Shorthand for --tool cc
+
+PROVIDER FLAGS (existing):
+  --aws           AWS Bedrock
+  --vertex        Google Vertex AI
+  --apikey        Anthropic API direct
+  --azure         Microsoft Azure
+  --vercel        Vercel AI Gateway
+  --pro           Claude Pro subscription
+
+PROVIDER FLAGS (new):
+  --ollama        Local Ollama (Anthropic API compatible)
+  --openrouter    OpenRouter (500+ models) - alias: --or
+  --lmstudio      LM Studio (local)
+
+MODEL FLAGS:
+  --opus, --high   Use highest tier model
+  --sonnet, --mid  Use mid tier model (default)
+  --haiku, --low   Use lowest tier model
+  --model <id>     Use specific model ID
+
+OTHER FLAGS:
+  --output-format <fmt>   Output format: text, json, stream-json
+  --stdin-position <pos>  Where to place piped input: 'prepend' (default) or 'append'
+  --version, -v           Show version
+  --help, -h              Show this help
+
+EXAMPLES:
+  ai task.md                    # Execute with auto-detected provider
+  ai --ollama task.md           # Execute with local Ollama (free)
+  ai --aws --opus task.md       # Execute with AWS Bedrock + Opus
+  curl URL | ai --ollama        # Pipe remote script to local Ollama
+
+BACKWARD COMPATIBILITY:
+  All claude-* commands (claude-run, claude-aws, etc.) still work.
+  Shebangs using #!/usr/bin/env claude-run continue to work.
+
+See: https://airun.me
+EOF
+    exit 0
+fi
+
+# Config migration check (only for new ai command)
+if needs_config_migration; then
+    migrate_config_interactive
+fi
+
+# Load configuration
+load_config_quiet
+
+# First-time setup (if needed and interactive)
+if needs_first_time_setup && is_interactive; then
+    run_first_time_setup || exit 1
+    # Reload config after setup
+    load_config_quiet
+fi
+
+#=============================================================================
+# Auto-detection: Tool and Provider
+#=============================================================================
+
+# Auto-detect tool if not specified
+if [[ -z "$TOOL_FLAG" ]]; then
+    TOOL_FLAG=$(detect_default_tool)
+    if [[ -z "$TOOL_FLAG" ]]; then
+        print_no_tool_error
+        exit 1
+    fi
+fi
+
+# Load the selected tool
+if ! load_tool "$TOOL_FLAG"; then
+    exit 1
+fi
+
+# Check if tool is installed
+if ! tool_is_installed; then
+    tool_get_install_instructions
+    exit 1
+fi
+
+# Auto-detect provider if not specified
+if [[ -z "$PROVIDER_FLAG" ]]; then
+    PROVIDER_FLAG=$(detect_default_provider)
+    if [[ -z "$PROVIDER_FLAG" ]]; then
+        print_no_provider_error
+        exit 1
+    fi
+fi
+
+# Load the selected provider
+if ! load_provider "$PROVIDER_FLAG"; then
+    exit 1
+fi
+
+# Validate provider configuration
+if ! provider_validate_config; then
+    provider_get_validation_error
+    exit 1
+fi
+
+# Check tool-provider compatibility
+if ! tool_supports_provider "$PROVIDER_FLAG"; then
+    print_warning "$(tool_name) may not fully support $(provider_name)"
+fi
+
+# Set default model tier if not specified
+# Pro subscription defaults to "high" (Opus) to match native claude command
+# API/BYOK providers default to "mid" (Sonnet) to manage costs
+if [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" ]]; then
+    if [[ "$PROVIDER_FLAG" == "pro" ]]; then
+        MODEL_TIER="high"
+    else
+        MODEL_TIER="mid"
+    fi
+fi
+
+#=============================================================================
+# Setup Environment
+#=============================================================================
+
+# Setup provider environment
+if ! provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL"; then
+    exit 1
+fi
+
+# Setup tool environment
+tool_setup_env
+
+# Generate session ID
+AI_SESSION_ID="$(tool_flag)-$(provider_flag)-$$-$(date +%s)"
+export AI_SESSION_ID
+
+# Write session information
+write_session_info \
+    "$(provider_name)" \
+    "BYOK" \
+    "$ANTHROPIC_MODEL" \
+    "$ANTHROPIC_SMALL_FAST_MODEL" \
+    "$(provider_get_region 2>/dev/null || echo '')" \
+    "$(provider_get_project 2>/dev/null || echo '')" \
+    "$(provider_get_auth_method)" \
+    "$(tool_flag)"
+
+# Cleanup on exit
+cleanup_on_exit() {
+    cleanup_session_info
+    provider_cleanup_env
+}
+trap cleanup_on_exit EXIT
+
+# Add --verbose if stream-json output format requires it
+if [[ "$NEEDS_VERBOSE" == true ]]; then
+    CLAUDE_ARGS=("--verbose" "${CLAUDE_ARGS[@]}")
+fi
+
+#=============================================================================
+# MODE 1: SHEBANG/FILE EXECUTION (non-interactive)
+#=============================================================================
+if [[ -n "$MD_FILE" ]]; then
+    # Read file content, strip shebang if present
+    if [[ "$(head -1 "$MD_FILE")" == "#!"* ]]; then
+        CONTENT=$(tail -n +2 "$MD_FILE")
+    else
+        CONTENT=$(cat "$MD_FILE")
+    fi
+
+    # Integrate stdin content if available
+    if [[ -n "$STDIN_CONTENT" ]]; then
+        if [[ "$STDIN_POSITION" == "prepend" ]]; then
+            CONTENT="The following input was provided via stdin:
+---
+$STDIN_CONTENT
+---
+
+$CONTENT"
+        else
+            CONTENT="$CONTENT
+
+---
+The following input was provided via stdin:
+---
+$STDIN_CONTENT"
+        fi
+    fi
+
+    # Show status in interactive mode
+    if is_interactive; then
+        print_status "Using: $(tool_name) + $(provider_name)"
+        print_status "Model: $ANTHROPIC_MODEL"
+    fi
+
+    # Execute with prompt mode
+    tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
+    exit $?
+fi
+
+#=============================================================================
+# MODE 2: PIPED SCRIPT EXECUTION (stdin without file)
+#=============================================================================
+if [[ -n "$STDIN_CONTENT" ]]; then
+    # Check for shebang in piped content and extract flags
+    FIRST_LINE="${STDIN_CONTENT%%$'\n'*}"
+
+    if [[ "$FIRST_LINE" == "#!"* ]]; then
+        # Strip shebang line from content
+        CONTENT="${STDIN_CONTENT#*$'\n'}"
+
+        # Extract flags from shebang (e.g., "#!/usr/bin/env ai --ollama --opus")
+        if [[ "$FIRST_LINE" == *"ai"* ]] || [[ "$FIRST_LINE" == *"airun"* ]] || [[ "$FIRST_LINE" == *"claude-run"* ]]; then
+            SHEBANG_FLAGS="${FIRST_LINE#*ai}"
+            SHEBANG_FLAGS="${SHEBANG_FLAGS#*airun}"
+            SHEBANG_FLAGS="${SHEBANG_FLAGS#*claude-run}"
+            # Trim leading whitespace
+            SHEBANG_FLAGS="${SHEBANG_FLAGS#"${SHEBANG_FLAGS%%[![:space:]]*}"}"
+
+            # Parse shebang flags (CLI flags take precedence)
+            if [[ -n "$SHEBANG_FLAGS" ]]; then
+                read -ra SHEBANG_ARR <<< "$SHEBANG_FLAGS"
+                for arg in "${SHEBANG_ARR[@]}"; do
+                    case "$arg" in
+                        --aws|--vertex|--apikey|--azure|--vercel|--pro|--ollama)
+                            # Provider flags - only use if not already set by CLI
+                            [[ -z "$PROVIDER_FLAG" ]] && PROVIDER_FLAG="${arg#--}"
+                            ;;
+                        --opus|--sonnet|--haiku|--high|--mid|--low)
+                            # Model flags
+                            [[ -z "$MODEL_TIER" ]] && case "$arg" in
+                                --opus|--high) MODEL_TIER="high" ;;
+                                --sonnet|--mid) MODEL_TIER="mid" ;;
+                                --haiku|--low) MODEL_TIER="low" ;;
+                            esac
+                            ;;
+                        *)
+                            # Other flags pass through
+                            CLAUDE_ARGS+=("$arg")
+                            ;;
+                    esac
+                done
+            fi
+        fi
+    else
+        CONTENT="$STDIN_CONTENT"
+    fi
+
+    # Show status in interactive mode
+    if is_interactive; then
+        print_status "Using: $(tool_name) + $(provider_name)"
+        print_status "Model: $ANTHROPIC_MODEL"
+    fi
+
+    # Execute with prompt mode
+    tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
+    exit $?
+fi
+
+#=============================================================================
+# MODE 3: INTERACTIVE (launch tool with provider configured)
+#=============================================================================
+
+# Show banner
+display_banner
+
+print_success "$(tool_name) + $(provider_name) mode activated"
+print_status "- Provider: $(provider_name)"
+print_status "- Auth: $(provider_get_auth_method)"
+print_status "- Model: $ANTHROPIC_MODEL"
+if [[ -n "$ANTHROPIC_SMALL_FAST_MODEL" ]]; then
+    print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
+fi
+# Provider-specific extra info (e.g., system capabilities for Ollama)
+provider_print_extra_info
+
+# Show auth conflict note for API key mode (if user is also logged into Claude Pro)
+if [[ "$PROVIDER_FLAG" == "apikey" ]] && [[ -n "$ANTHROPIC_API_KEY" ]]; then
+    echo ""
+    print_warning "Note: If you see an 'Auth conflict' warning below, this is expected."
+    print_status "Your API key will be used for billing. The warning is informational only."
+    print_status "To permanently switch to API-only mode, run: claude /logout"
+    echo ""
+fi
+
+print_status "Launching $(tool_name)..."
+
+# Launch tool in interactive mode
+tool_execute_interactive "${CLAUDE_ARGS[@]}"

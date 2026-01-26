@@ -1,9 +1,31 @@
 # Changelog
 
-All notable changes to claude-switcher will be documented in this file.
+All notable changes to AI Runner will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.0.0] - 2026-01-25
+
+### Added
+- **AI Runner Rebranding**: Project renamed from claude-switcher to AI Runner
+  - New primary command: `ai` (with `airun` alias)
+  - New utilities: `ai-sessions`, `ai-status`
+  - New config directory: `~/.ai-runner/` (migrates from ~/.claude-switcher/)
+- **Ollama Provider**: Local free AI with `--ollama` flag
+- **Provider Abstraction Layer**: Modular provider system in `providers/`
+- **Tool Abstraction Layer**: Modular tool system in `tools/`
+- **Model Tier Aliases**: `--high`, `--mid`, `--low` as alternatives to `--opus`, `--sonnet`, `--haiku`
+
+### Changed
+- Primary command is now `ai` instead of `claude-run`
+- Config directory moved to `~/.ai-runner/` (automatic migration)
+- Install location: `/usr/local/share/ai-runner/`
+
+### Backward Compatibility
+- All `claude-*` commands continue to work unchanged
+- Existing shebang scripts with `claude-run` still work
+- `~/.claude-switcher/` configuration still supported
 
 ## [1.3.1] - 2026-01-11
 

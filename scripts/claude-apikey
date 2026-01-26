@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Claude Anthropic API Mode (Legacy command - use 'ai --apikey' instead)
+#
+# This uses pure environment variables for session-isolated authentication.
+# If you're also logged into Claude Pro, you'll see an "Auth conflict" warning -
+# this is informational only, Claude will use the API key for billing.
+
 # Source utils
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/claude-switcher-utils.sh"
@@ -23,41 +29,16 @@ export CLAUDE_SESSION_ID
 print_status "Switching to Claude Anthropic API mode..."
 print_status "Session ID: $CLAUDE_SESSION_ID"
 
-# Store existing environment variables
+# Store existing environment variables for restoration
 SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
 SAVED_ANTHROPIC_SMALL_FAST_MODEL="$ANTHROPIC_SMALL_FAST_MODEL"
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
-SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 
 # Disable Bedrock
 export CLAUDE_CODE_USE_BEDROCK=0
 unset AWS_BEARER_TOKEN_BEDROCK
 
-# Source settings manager for apiKeyHelper management
-source "$SCRIPT_DIR/claude-settings-manager.sh"
-
-# Save current apiKeyHelper state so we can restore it on exit
-# This preserves user's existing apiKeyHelper if they have one
-save_api_key_helper_state
-
-# Add our apiKeyHelper to settings.json
-print_status "Configuring apiKeyHelper for Anthropic API mode..."
-if add_api_key_helper; then
-    print_status "apiKeyHelper configured"
-else
-    print_error "Failed to configure apiKeyHelper"
-    exit 1
-fi
-
-# Set mode for apiKeyHelper to provide Anthropic API key
-# This causes apiKeyHelper to return ANTHROPIC_API_KEY, enabling API auth
-cat > "$CONFIG_DIR/current-mode.sh" << 'EOF'
-# Current claude-switcher mode
-# Used by apiKeyHelper to determine authentication method
-export CLAUDE_SWITCHER_MODE="anthropic"
-EOF
-
-# Ensure API Key is present
+# Ensure API Key is present (loaded by load_config from secrets.sh)
 if [ -z "$ANTHROPIC_API_KEY" ]; then
     print_error "ANTHROPIC_API_KEY is not set"
     print_error ""
@@ -69,10 +50,6 @@ if [ -z "$ANTHROPIC_API_KEY" ]; then
     print_error "  export ANTHROPIC_API_KEY=\"sk-ant-...\""
     exit 1
 fi
-
-# Note: We do NOT export ANTHROPIC_API_KEY here to avoid conflict with apiKeyHelper
-# The apiKeyHelper script will read it directly from secrets.sh
-# This prevents Claude CLI from seeing both a token (apiKeyHelper) and an API key (env var)
 
 # Parse arguments to select model
 parse_model_args "ANTHROPIC" "$@"
@@ -98,7 +75,13 @@ print_success "Claude Anthropic API mode activated"
 print_status "- Using Anthropic API"
 print_status "- Model: $ANTHROPIC_MODEL"
 print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
-print_status "- Mode set to 'anthropic' (apiKeyHelper will provide API key)"
+print_status "- Auth: API Key (session-isolated via environment)"
+
+echo ""
+print_warning "Note: If you see an 'Auth conflict' warning below, this is expected."
+print_status "Your API key will be used for billing. The warning is informational only."
+print_status "To permanently switch to API-only mode, run: claude /logout"
+echo ""
 
 print_status "Launching Claude Code..."
 
@@ -110,47 +93,36 @@ write_session_info \
     "$ANTHROPIC_SMALL_FAST_MODEL" \
     "" \
     "" \
-    "apiKeyHelper"
+    "API Key"
 
-# Unset ANTHROPIC_API_KEY to prevent auth conflict with apiKeyHelper
-# The helper script will provide the key by reading secrets.sh internally
-unset ANTHROPIC_API_KEY
+# KEEP ANTHROPIC_API_KEY set - Claude Code uses it directly
+# If user is also logged into Pro, they'll see "Auth conflict" warning (informational only)
 
 restore_environment() {
-    print_status "Restoring original environment variables and settings..."
-    
+    print_status "Restoring original environment variables..."
+
     # Clean up session tracking file
     cleanup_session_info
-    
-    # Restore apiKeyHelper to its original state (before we modified it)
-    # This preserves user's existing apiKeyHelper if they had one
-    restore_api_key_helper_state
-    
+
     # Restore environment variables
     if [ -n "$SAVED_ANTHROPIC_MODEL" ]; then
         export ANTHROPIC_MODEL="$SAVED_ANTHROPIC_MODEL"
     else
         unset ANTHROPIC_MODEL
     fi
-    
+
     if [ -n "$SAVED_ANTHROPIC_SMALL_FAST_MODEL" ]; then
         export ANTHROPIC_SMALL_FAST_MODEL="$SAVED_ANTHROPIC_SMALL_FAST_MODEL"
     else
         unset ANTHROPIC_SMALL_FAST_MODEL
     fi
-    
+
     if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
         export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
     else
         unset CLAUDE_CODE_USE_BEDROCK
     fi
 
-    if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
-        export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
-    else
-        unset ANTHROPIC_API_KEY
-    fi
-    
     print_success "Environment restored"
 }
 

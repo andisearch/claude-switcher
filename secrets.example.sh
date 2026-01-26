@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Copy this file to ~/.claude-switcher/secrets.sh and fill in your values.
+# Copy this file to ~/.ai-runner/secrets.sh and fill in your values.
+# (Legacy: ~/.claude-switcher/secrets.sh is also supported for backward compatibility)
 
 # AWS Bedrock Credentials
 # See: https://code.claude.com/docs/en/amazon-bedrock
@@ -131,3 +132,57 @@
 
 # Vercel AI Gateway Small/Fast Model
 # export CLAUDE_SMALL_FAST_MODEL_VERCEL="anthropic/claude-haiku-4.5"
+
+# ============================================================================
+# Ollama Configuration (Local, Free)
+# ============================================================================
+# Ollama provides free local AI with Anthropic API compatibility.
+# See: https://docs.ollama.com/integrations/claude-code
+
+# Ollama server URL (default: http://localhost:11434)
+# export OLLAMA_HOST="http://localhost:11434"
+
+# Ollama Model Tier Mappings
+# Override the default models used for each tier (--high, --mid, --low)
+# Recommended: Use models with 64K+ context for Claude Code compatibility
+# export OLLAMA_MODEL_HIGH="qwen3:72b"           # For --opus/--high
+# export OLLAMA_MODEL_MID="qwen3-coder:32b"      # For --sonnet/--mid (default)
+# export OLLAMA_MODEL_LOW="qwen3:8b"             # For --haiku/--low
+
+# ============================================================================
+# OpenRouter Configuration
+# ============================================================================
+# OpenRouter provides access to 500+ models with a single API key.
+# See: https://openrouter.ai
+
+# export OPENROUTER_API_KEY="sk-or-..."
+
+# OpenRouter Model Tier Mappings
+# export ROUTER_MODEL_HIGH="anthropic/claude-opus-4-5"
+# export ROUTER_MODEL_MID="anthropic/claude-sonnet-4-5"
+# export ROUTER_MODEL_LOW="anthropic/claude-haiku-4-5"
+
+# ============================================================================
+# AI Runner Defaults
+# ============================================================================
+
+# Default provider (used when no provider flag specified)
+# Options: ollama, pro, apikey, aws, vertex, azure, vercel
+# export DEFAULT_PROVIDER="ollama"
+
+# Default model tier (used when no model flag specified)
+# Options: high, mid, low
+# export DEFAULT_MODEL_TIER="mid"
+
+# Fallback provider (used when primary provider fails)
+# export FALLBACK_PROVIDER="ollama"
+# export FALLBACK_MODEL="qwen3-coder:32b"
+
+# Disable automatic fallback
+# export AI_RUNNER_NO_FALLBACK=1
+
+# Skip config migration prompt
+# export AI_RUNNER_SKIP_MIGRATION=1
+
+# Custom config directory
+# export AI_RUNNER_CONFIG_DIR="$HOME/.ai-runner"

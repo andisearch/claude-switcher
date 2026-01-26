@@ -113,44 +113,8 @@ if [ -n "$CURRENT_SESSION_FILE" ]; then
     echo ""
 fi
 
-# Check API Key Helper configuration
-CLAUDE_SETTINGS_FILE="$HOME/.claude/settings.json"
-API_KEY_HELPER_SCRIPT="$HOME/.claude-switcher/claude-api-key-helper.sh"
-CURRENT_MODE_FILE="$HOME/.claude-switcher/current-mode.sh"
-
-print_status "API Key Helper Status:"
-
-# Check if settings.json has apiKeyHelper configured
-if [ -f "$CLAUDE_SETTINGS_FILE" ]; then
-    if grep -q "apiKeyHelper" "$CLAUDE_SETTINGS_FILE" 2>/dev/null; then
-        print_success "  settings.json: configured ✓"
-    else
-        print_warning "  settings.json: not configured"
-        print_warning "  Run setup.sh to configure apiKeyHelper"
-    fi
-else
-    print_warning "  settings.json: not found"
-fi
-
-# Check if helper script exists and is executable
-if [ -f "$API_KEY_HELPER_SCRIPT" ]; then
-    if [ -x "$API_KEY_HELPER_SCRIPT" ]; then
-        print_success "  Helper script: exists and executable ✓"
-    else
-        print_warning "  Helper script: exists but not executable"
-    fi
-else
-    print_warning "  Helper script: not found at $API_KEY_HELPER_SCRIPT"
-fi
-
-# Show current switcher mode
-if [ -f "$CURRENT_MODE_FILE" ]; then
-    source "$CURRENT_MODE_FILE"
-    print_status "  Current switcher mode: ${CLAUDE_SWITCHER_MODE:-not set}"
-else
-    print_warning "  current-mode.sh: not found"
-fi
-
+# Session isolation status
+print_status "Session Isolation: Pure environment variables (no settings.json modification)"
 echo ""
 
 # Detect current authentication mode

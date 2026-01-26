@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Claude Vercel AI Gateway Mode (Legacy command - use 'ai --vercel' instead)
+#
+# This uses pure environment variables for session-isolated authentication.
+
 # Source utils
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/claude-switcher-utils.sh"
@@ -40,45 +44,13 @@ fi
 # Set default gateway URL if not specified
 VERCEL_AI_GATEWAY_URL="${VERCEL_AI_GATEWAY_URL:-https://ai-gateway.vercel.sh}"
 
-# Store existing environment variables to restore after Claude exits
+# Store existing environment variables for restoration
 SAVED_ANTHROPIC_MODEL="$ANTHROPIC_MODEL"
 SAVED_ANTHROPIC_SMALL_FAST_MODEL="$ANTHROPIC_SMALL_FAST_MODEL"
 SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 SAVED_ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL"
 SAVED_ANTHROPIC_AUTH_TOKEN="$ANTHROPIC_AUTH_TOKEN"
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
-
-# Source settings manager for apiKeyHelper management
-source "$SCRIPT_DIR/claude-settings-manager.sh"
-
-# Save current apiKeyHelper state so we can restore it on exit
-# User might have their own apiKeyHelper configured
-save_api_key_helper_state
-
-# Temporarily remove apiKeyHelper for this Vercel session
-# ANTHROPIC_AUTH_TOKEN conflicts with apiKeyHelper, same as the issue claude-pro faces
-if is_api_key_helper_configured; then
-    print_status "Temporarily disabling apiKeyHelper for Vercel session..."
-    # Backup before removing
-    cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup-$(date +%Y%m%d-%H%M%S)"
-    
-    if command -v jq &> /dev/null; then
-        jq 'del(.apiKeyHelper)' "$HOME/.claude/settings.json" > "$HOME/.claude/settings.json.tmp" && \
-            mv "$HOME/.claude/settings.json.tmp" "$HOME/.claude/settings.json"
-    elif command -v python3 &> /dev/null; then
-        python3 << 'EOF'
-import json
-import os
-settings_file = os.path.expanduser("~/.claude/settings.json")
-with open(settings_file, 'r') as f:
-    settings = json.load(f)
-if 'apiKeyHelper' in settings:
-    del settings['apiKeyHelper']
-with open(settings_file, 'w') as f:
-    json.dump(settings, f, indent=2)
-EOF
-    fi
-fi
 
 # Disable other providers
 export CLAUDE_CODE_USE_BEDROCK=0
@@ -115,6 +87,7 @@ print_status "- Gateway URL: $VERCEL_AI_GATEWAY_URL"
 print_status "- Auth Token: ${VERCEL_AI_GATEWAY_TOKEN:0:10}... (hidden)"
 print_status "- Model: $ANTHROPIC_MODEL"
 print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
+print_status "- Auth: Vercel Token (session-isolated via environment)"
 
 print_status "Launching Claude Code..."
 
@@ -130,51 +103,47 @@ write_session_info \
 
 # Function to restore original environment variables
 restore_environment() {
-    print_status "Restoring original environment variables and settings..."
-    
+    print_status "Restoring original environment variables..."
+
     # Clean up session tracking file
     cleanup_session_info
-    
-    # Restore apiKeyHelper to its original state
-    # This preserves user's existing apiKeyHelper if they had one
-    restore_api_key_helper_state
-    
+
     if [ -n "$SAVED_ANTHROPIC_MODEL" ]; then
         export ANTHROPIC_MODEL="$SAVED_ANTHROPIC_MODEL"
     else
         unset ANTHROPIC_MODEL
     fi
-    
+
     if [ -n "$SAVED_ANTHROPIC_SMALL_FAST_MODEL" ]; then
         export ANTHROPIC_SMALL_FAST_MODEL="$SAVED_ANTHROPIC_SMALL_FAST_MODEL"
     else
         unset ANTHROPIC_SMALL_FAST_MODEL
     fi
-    
+
     if [ -n "$SAVED_ANTHROPIC_API_KEY" ]; then
         export ANTHROPIC_API_KEY="$SAVED_ANTHROPIC_API_KEY"
     else
         unset ANTHROPIC_API_KEY
     fi
-    
+
     if [ -n "$SAVED_ANTHROPIC_BASE_URL" ]; then
         export ANTHROPIC_BASE_URL="$SAVED_ANTHROPIC_BASE_URL"
     else
         unset ANTHROPIC_BASE_URL
     fi
-    
+
     if [ -n "$SAVED_ANTHROPIC_AUTH_TOKEN" ]; then
         export ANTHROPIC_AUTH_TOKEN="$SAVED_ANTHROPIC_AUTH_TOKEN"
     else
         unset ANTHROPIC_AUTH_TOKEN
     fi
-    
+
     if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
         export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
     else
         unset CLAUDE_CODE_USE_BEDROCK
     fi
-    
+
     print_success "Environment restored"
 }
 

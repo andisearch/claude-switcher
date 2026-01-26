@@ -2,7 +2,7 @@
 
 # Model Configuration
 # This file defines default model identifiers for each provider.
-# You can override these in ~/.claude-switcher/secrets.sh
+# You can override these in ~/.ai-runner/secrets.sh (or legacy ~/.claude-switcher/secrets.sh)
 #
 # IMPORTANT: Per official Claude Code documentation, the runtime uses:
 #   - ANTHROPIC_MODEL (primary model)
@@ -51,6 +51,27 @@ export CLAUDE_MODEL_SONNET_VERCEL="${CLAUDE_MODEL_SONNET_VERCEL:-anthropic/claud
 export CLAUDE_MODEL_OPUS_VERCEL="${CLAUDE_MODEL_OPUS_VERCEL:-anthropic/claude-opus-4.5}"
 export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-haiku-4.5}"
 
+# Ollama Model Defaults (Local)
+# See: https://docs.ollama.com/integrations/claude-code
+#
+# By default, AI Runner auto-detects available Ollama models.
+# To override auto-detection, uncomment and set specific models:
+#
+#   export OLLAMA_MODEL_HIGH="qwen3:72b"        # For --opus/--high
+#   export OLLAMA_MODEL_MID="qwen3-coder"       # For --sonnet/--mid
+#   export OLLAMA_MODEL_LOW="gemma3"            # For --haiku/--low
+#
+# Recommended models with 64K+ context for Claude Code compatibility:
+#   - qwen3-coder: Coding optimized, good balance
+#   - glm-4.7: 128K context, tool-calling support
+
+# OpenRouter Model Defaults
+# See: https://openrouter.ai
+# Uses format: provider/model-name (with dots like 4.5, not dashes)
+export ROUTER_MODEL_HIGH="${ROUTER_MODEL_HIGH:-anthropic/claude-opus-4.5}"
+export ROUTER_MODEL_MID="${ROUTER_MODEL_MID:-anthropic/claude-sonnet-4.5}"
+export ROUTER_MODEL_LOW="${ROUTER_MODEL_LOW:-anthropic/claude-haiku-4.5}"
+
 # Small/Fast Model Defaults (for background operations)
 # These are used by Claude Code for sub-agents, file operations, and auxiliary tasks
 # Default to Haiku for each provider but can be overridden in secrets.sh
@@ -84,7 +105,7 @@ export CLAUDE_SMALL_FAST_MODEL_VERCEL="${CLAUDE_SMALL_FAST_MODEL_VERCEL:-${CLAUD
 #
 # MANUAL OVERRIDE:
 # To use a different small/fast model for a provider, set the appropriate
-# variable in ~/.claude-switcher/secrets.sh:
+# variable in ~/.ai-runner/secrets.sh:
 #   export CLAUDE_SMALL_FAST_MODEL_AWS="your-custom-model-id"
 #   export CLAUDE_SMALL_FAST_MODEL_VERTEX="your-custom-model-id"
 #

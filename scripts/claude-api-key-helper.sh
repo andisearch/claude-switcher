@@ -1,36 +1,21 @@
 #!/bin/bash
-# API Key Helper for Claude Switcher
-# Returns ANTHROPIC_API_KEY only when in Anthropic mode
+
+# API Key Helper - DEPRECATED
 #
-# This script is called by Claude Code via the apiKeyHelper setting in ~/.claude/settings.json
-# It enables seamless switching between Claude Pro/Max subscription and Anthropic API key
-# without requiring logout flows.
+# This script is no longer used. AI Runner now uses pure environment variables
+# for session-isolated authentication, avoiding all settings.json modifications.
 #
-# Behavior:
-# - In "anthropic" mode: outputs ANTHROPIC_API_KEY → Claude uses API key auth
-# - In "pro" mode (or any other): outputs nothing → Claude uses web auth
-# - AWS, Vertex, Azure don't use this - they have their own environment variables
+# If this script is still referenced in your ~/.claude/settings.json, please
+# remove the apiKeyHelper line. Running './setup.sh' or './uninstall.sh' will
+# clean this up automatically.
+#
+# The new approach:
+# - 'ai --apikey' exports ANTHROPIC_API_KEY directly (session-isolated)
+# - 'ai --pro' unsets ANTHROPIC_API_KEY to use subscription auth
+# - No files are modified, so crashes leave no stale state
+# - Parallel Claude sessions work independently
 
-MODE_FILE="$HOME/.claude-switcher/current-mode.sh"
-SECRETS_FILE="$HOME/.claude-switcher/secrets.sh"
-
-# Load secrets if available
-if [ -f "$SECRETS_FILE" ]; then
-    source "$SECRETS_FILE"
-fi
-
-# Load current mode (sets CLAUDE_SWITCHER_MODE)
-if [ -f "$MODE_FILE" ]; then
-    source "$MODE_FILE"
-fi
-
-# Return API key ONLY for Anthropic mode
-# For all other modes (pro, aws, vertex, azure), return nothing
-if [ "${CLAUDE_SWITCHER_MODE}" = "anthropic" ]; then
-    if [ -n "$ANTHROPIC_API_KEY" ]; then
-        echo "$ANTHROPIC_API_KEY"
-    fi
-fi
-
-# Exit successfully either way
-exit 0
+# Exit with error to indicate this should not be used
+echo "Warning: claude-api-key-helper.sh is deprecated and should not be used." >&2
+echo "Please run './setup.sh' to update your installation." >&2
+exit 1

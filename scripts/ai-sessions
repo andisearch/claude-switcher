@@ -1,0 +1,207 @@
+#!/bin/bash
+
+# AI Sessions Viewer
+# Lists active AI sessions with tracking information across all tools
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Set branding
+export AI_RUNNER_BRAND="AI Runner"
+
+# Source utils
+if [ -f "$SCRIPT_DIR/lib/core-utils.sh" ]; then
+    source "$SCRIPT_DIR/lib/core-utils.sh"
+elif [ -f "$SCRIPT_DIR/claude-switcher-utils.sh" ]; then
+    source "$SCRIPT_DIR/claude-switcher-utils.sh"
+else
+    # Minimal fallback
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+    print_status() { echo -e "${BLUE}[AI Sessions]${NC} $1"; }
+    SESSIONS_DIR="$HOME/.claude-switcher/sessions"
+    [ -d "$HOME/.ai-runner/sessions" ] && SESSIONS_DIR="$HOME/.ai-runner/sessions"
+fi
+
+# Parse arguments for filtering
+FILTER_TOOL=""
+FILTER_PROVIDER=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --tool)
+            FILTER_TOOL="$2"
+            shift 2 ;;
+        --provider)
+            FILTER_PROVIDER="$2"
+            shift 2 ;;
+        --help|-h)
+            cat << 'EOF'
+Usage: ai-sessions [OPTIONS]
+
+List active AI sessions across all tools and providers.
+
+OPTIONS:
+  --tool <name>       Filter by tool (e.g., cc, claude-code)
+  --provider <name>   Filter by provider (e.g., aws, ollama)
+  --help, -h          Show this help
+
+EXAMPLES:
+  ai-sessions                    # Show all sessions
+  ai-sessions --tool cc          # Show only Claude Code sessions
+  ai-sessions --provider ollama  # Show only Ollama sessions
+EOF
+            exit 0
+            ;;
+        *)
+            shift ;;
+    esac
+done
+
+# Clean up stale sessions
+cleanup_stale_sessions 2>/dev/null || true
+
+echo ""
+print_status "Active AI Sessions:"
+echo ""
+
+# Check if sessions directory exists and has any files
+if [ ! -d "$SESSIONS_DIR" ] || [ -z "$(ls -A "$SESSIONS_DIR" 2>/dev/null)" ]; then
+    print_status "No active AI sessions found"
+    echo ""
+    print_status "Sessions started with ai, claude-*, or related commands will appear here"
+    echo ""
+    exit 0
+fi
+
+# Display header
+printf "%-8s %-15s %-12s %-35s %-15s %s\n" "PID" "Tool" "Provider" "Model" "Region" "Uptime"
+printf "%-8s %-15s %-12s %-35s %-15s %s\n" "----" "----" "--------" "-----" "------" "------"
+
+# Calculate uptime helper
+calculate_uptime() {
+    local start_time=$1
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - start_time))
+
+    local hours=$((elapsed / 3600))
+    local minutes=$(((elapsed % 3600) / 60))
+    local seconds=$((elapsed % 60))
+
+    if [ $hours -gt 0 ]; then
+        echo "${hours}h${minutes}m"
+    elif [ $minutes -gt 0 ]; then
+        echo "${minutes}m${seconds}s"
+    else
+        echo "${seconds}s"
+    fi
+}
+
+# Iterate through session files and display info
+found_sessions=false
+for session_file in "$SESSIONS_DIR"/*; do
+    if [ ! -f "$session_file" ]; then
+        continue
+    fi
+
+    # Source the session file to get variables
+    source "$session_file"
+
+    # Get tool and provider (support both new and legacy variable names)
+    local_tool="${AI_SESSION_TOOL:-claude-code}"
+    local_provider="${AI_SESSION_PROVIDER:-${CLAUDE_SESSION_PROVIDER:-unknown}}"
+    local_model="${AI_SESSION_MODEL:-${CLAUDE_SESSION_MODEL:-unknown}}"
+    local_region="${AI_SESSION_REGION:-${CLAUDE_SESSION_REGION:-}}"
+    local_start="${AI_SESSION_START_TIME:-${CLAUDE_SESSION_START_TIME:-0}}"
+    local_pid="${AI_SESSION_PID:-${CLAUDE_SESSION_PID:-$(basename "$session_file")}}"
+
+    # Apply filters
+    if [ -n "$FILTER_TOOL" ] && [ "$local_tool" != "$FILTER_TOOL" ] && [ "$local_tool" != "claude-code" ]; then
+        # Also check for cc alias
+        if [ "$FILTER_TOOL" != "cc" ] || [ "$local_tool" != "claude-code" ]; then
+            continue
+        fi
+    fi
+
+    if [ -n "$FILTER_PROVIDER" ] && [ "$local_provider" != "$FILTER_PROVIDER" ]; then
+        continue
+    fi
+
+    # Verify the PID is still running
+    if ! ps -p "$local_pid" > /dev/null 2>&1; then
+        continue
+    fi
+
+    found_sessions=true
+
+    # Calculate uptime
+    uptime=$(calculate_uptime "$local_start")
+
+    # Truncate model name if too long
+    model_display="$local_model"
+    if [ ${#model_display} -gt 35 ]; then
+        model_display="${model_display:0:32}..."
+    fi
+
+    # Handle empty region
+    region_display="${local_region:-N/A}"
+    if [ ${#region_display} -gt 15 ]; then
+        region_display="${region_display:0:12}..."
+    fi
+
+    printf "%-8s %-15s %-12s %-35s %-15s %s\n" \
+        "$local_pid" \
+        "$local_tool" \
+        "$local_provider" \
+        "$model_display" \
+        "$region_display" \
+        "$uptime"
+done
+
+# Also check for native processes not tracked by our sessions
+for pid in $(pgrep -x "claude" 2>/dev/null); do
+    # Skip if we already showed this PID
+    if [ -f "$SESSIONS_DIR/$pid" ]; then
+        continue
+    fi
+
+    # Check if this process is a child of any tracked session
+    is_child_of_tracked=false
+    current_ppid=$(ps -p "$pid" -o ppid= 2>/dev/null | tr -d ' ')
+    while [ -n "$current_ppid" ] && [ "$current_ppid" != "1" ]; do
+        if [ -f "$SESSIONS_DIR/$current_ppid" ]; then
+            is_child_of_tracked=true
+            break
+        fi
+        current_ppid=$(ps -p "$current_ppid" -o ppid= 2>/dev/null | tr -d ' ')
+    done
+
+    if [ "$is_child_of_tracked" = true ]; then
+        continue
+    fi
+
+    # Apply tool filter
+    if [ -n "$FILTER_TOOL" ] && [ "$FILTER_TOOL" != "cc" ] && [ "$FILTER_TOOL" != "claude-code" ]; then
+        continue
+    fi
+
+    found_sessions=true
+
+    printf "%-8s %-15s %-12s %-35s %-15s %s\n" \
+        "$pid" \
+        "claude-code" \
+        "(native)" \
+        "(no tracking)" \
+        "N/A" \
+        "Unknown"
+done
+
+if [ "$found_sessions" = false ]; then
+    echo ""
+    print_status "No active AI sessions found"
+fi
+
+echo ""
+print_status "Commands:"
+print_status "  ai-status     - Show current configuration"
+print_status "  ai-sessions   - Show all active sessions (this command)"
+echo ""

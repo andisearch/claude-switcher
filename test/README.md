@@ -13,7 +13,7 @@ Validates all README script automation examples work correctly.
 ```
 
 **Tests cover:**
-- Shebang execution (`#!/usr/bin/env claude-run`)
+- Shebang execution (`#!/usr/bin/env ai` and legacy `#!/usr/bin/env claude-run`)
 - Stdin piping and `--stdin-position` flag
 - Shebang stripping before stdin prepend (security)
 - Pipeline chaining

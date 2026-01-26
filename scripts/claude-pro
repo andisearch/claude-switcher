@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Claude Pro Plan Mode (Legacy command - use 'ai --pro' instead)
+#
+# This uses pure environment variables for session-isolated authentication.
+# Uses native Claude Code subscription auth (no API key needed).
+
 # Source utils
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/claude-switcher-utils.sh"
@@ -22,52 +27,25 @@ export CLAUDE_SESSION_ID
 print_status "Switching to Claude Pro Plan mode..."
 print_status "Session ID: $CLAUDE_SESSION_ID"
 
-# Store existing environment variables
+# Store existing environment variables for restoration
 SAVED_CLAUDE_CODE_USE_BEDROCK="$CLAUDE_CODE_USE_BEDROCK"
 SAVED_ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 SAVED_AWS_BEARER_TOKEN_BEDROCK="$AWS_BEARER_TOKEN_BEDROCK"
 
-# Source settings manager for state management
-source "$SCRIPT_DIR/claude-settings-manager.sh"
+# Disable BYOK providers
+unset CLAUDE_CODE_USE_BEDROCK
+unset CLAUDE_CODE_USE_VERTEX
+unset CLAUDE_CODE_USE_FOUNDRY
 
-# Save current apiKeyHelper state so we can restore it on exit
-# User might have their own apiKeyHelper configured
-save_api_key_helper_state
-
-# Temporarily remove apiKeyHelper for this Pro session
-# This allows using Pro subscription even if user normally uses API key
-if is_api_key_helper_configured; then
-    print_status "Temporarily disabling apiKeyHelper for Pro session..."
-    # Backup before removing
-    cp "$HOME/.claude/settings.json" "$HOME/.claude/settings.json.backup-$(date +%Y%m%d-%H%M%S)"
-    
-    if command -v jq &> /dev/null; then
-        jq 'del(.apiKeyHelper)' "$HOME/.claude/settings.json" > "$HOME/.claude/settings.json.tmp" && \
-            mv "$HOME/.claude/settings.json.tmp" "$HOME/.claude/settings.json"
-    elif command -v python3 &> /dev/null; then
-        python3 << 'EOF'
-import json
-settings_file = "$HOME/.claude/settings.json"
-with open(settings_file, 'r') as f:
-    settings = json.load(f)
-if 'apiKeyHelper' in settings:
-    del settings['apiKeyHelper']
-with open(settings_file, 'w') as f:
-    json.dump(settings, f, indent=2)
-EOF
-    fi
-fi
-
-# Set mode to pro
-cat > "$CONFIG_DIR/current-mode.sh" << 'EOF'
-# Current claude-switcher mode
-# Used by apiKeyHelper to determine authentication method
-export CLAUDE_SWITCHER_MODE="pro"
-EOF
+# Unset API keys to use subscription auth
+unset ANTHROPIC_API_KEY
+unset ANTHROPIC_BASE_URL
+unset ANTHROPIC_AUTH_TOKEN
+unset AWS_BEARER_TOKEN_BEDROCK
 
 print_success "Claude Pro Plan mode activated"
 print_status "- Using Web Authentication"
-print_status "- Plain 'claude' command runs in native state"
+print_status "- Auth: Claude Pro Subscription (session-isolated)"
 
 print_status "Launching Claude Code..."
 
@@ -81,20 +59,12 @@ write_session_info \
     "" \
     "Web Authentication"
 
-# Unset ANTHROPIC_API_KEY to prevent auth conflict with Claude Pro/Max subscription
-# This ensures only web authentication is active
-unset ANTHROPIC_API_KEY
-
 restore_environment() {
-    print_status "Restoring original environment variables and settings..."
-    
+    print_status "Restoring original environment variables..."
+
     # Clean up session tracking file
     cleanup_session_info
-    
-    # Restore apiKeyHelper to its original state
-    # This preserves user's existing apiKeyHelper if they had one
-    restore_api_key_helper_state
-    
+
     if [ -n "$SAVED_CLAUDE_CODE_USE_BEDROCK" ]; then
         export CLAUDE_CODE_USE_BEDROCK="$SAVED_CLAUDE_CODE_USE_BEDROCK"
     else
@@ -112,7 +82,7 @@ restore_environment() {
     else
         unset AWS_BEARER_TOKEN_BEDROCK
     fi
-    
+
     print_success "Environment restored"
 }
 
