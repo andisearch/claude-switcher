@@ -16,24 +16,26 @@
 # Official defaults from Claude Code docs:
 #   Primary: global.anthropic.claude-sonnet-4-5-20250929-v1:0
 #   Small/fast: us.anthropic.claude-haiku-4-5-20251001-v1:0
+# To pin a specific dated version, override in secrets.sh (e.g., claude-opus-4-6-20260205)
 export CLAUDE_MODEL_SONNET_AWS="${CLAUDE_MODEL_SONNET_AWS:-global.anthropic.claude-sonnet-4-5-20250929-v1:0}"
-export CLAUDE_MODEL_OPUS_AWS="${CLAUDE_MODEL_OPUS_AWS:-global.anthropic.claude-opus-4-5-20251101-v1:0}"
+export CLAUDE_MODEL_OPUS_AWS="${CLAUDE_MODEL_OPUS_AWS:-global.anthropic.claude-opus-4-6-v1}"
 export CLAUDE_MODEL_HAIKU_AWS="${CLAUDE_MODEL_HAIKU_AWS:-us.anthropic.claude-haiku-4-5-20251001-v1:0}"
 
 # Google Vertex AI Model Defaults
 # See: https://code.claude.com/docs/en/google-vertex-ai#5-model-configuration
 # Official example from docs:
-#   ANTHROPIC_MODEL='claude-opus-4-5@20251101'
+#   ANTHROPIC_MODEL='claude-opus-4-6'
 #   ANTHROPIC_SMALL_FAST_MODEL='claude-haiku-4-5@20251001'
-export CLAUDE_MODEL_SONNET_VERTEX="${CLAUDE_MODEL_SONNET_VERTEX:-claude-sonnet-4-5@20250929}" 
-export CLAUDE_MODEL_OPUS_VERTEX="${CLAUDE_MODEL_OPUS_VERTEX:-claude-opus-4-5@20251101}" 
-export CLAUDE_MODEL_HAIKU_VERTEX="${CLAUDE_MODEL_HAIKU_VERTEX:-claude-haiku-4-5@20251001}" 
+export CLAUDE_MODEL_SONNET_VERTEX="${CLAUDE_MODEL_SONNET_VERTEX:-claude-sonnet-4-5@20250929}"
+export CLAUDE_MODEL_OPUS_VERTEX="${CLAUDE_MODEL_OPUS_VERTEX:-claude-opus-4-6}"
+export CLAUDE_MODEL_HAIKU_VERTEX="${CLAUDE_MODEL_HAIKU_VERTEX:-claude-haiku-4-5@20251001}"
 
 # Anthropic API Model Defaults
 # See: https://docs.anthropic.com/
 # Standard model IDs without provider prefix
+# To pin a specific dated version, override in secrets.sh (e.g., claude-opus-4-6-20260205)
 export CLAUDE_MODEL_SONNET_ANTHROPIC="${CLAUDE_MODEL_SONNET_ANTHROPIC:-claude-sonnet-4-5-20250929}"
-export CLAUDE_MODEL_OPUS_ANTHROPIC="${CLAUDE_MODEL_OPUS_ANTHROPIC:-claude-opus-4-5-20251101}"
+export CLAUDE_MODEL_OPUS_ANTHROPIC="${CLAUDE_MODEL_OPUS_ANTHROPIC:-claude-opus-4-6}"
 export CLAUDE_MODEL_HAIKU_ANTHROPIC="${CLAUDE_MODEL_HAIKU_ANTHROPIC:-claude-haiku-4-5}"
 
 # Microsoft Foundry on Azure Model Defaults
@@ -41,14 +43,14 @@ export CLAUDE_MODEL_HAIKU_ANTHROPIC="${CLAUDE_MODEL_HAIKU_ANTHROPIC:-claude-haik
 # Model names are deployment names (user-defined in Azure portal)
 # These are just suggested defaults - users must set their actual deployment names
 export CLAUDE_MODEL_SONNET_AZURE="${CLAUDE_MODEL_SONNET_AZURE:-claude-sonnet-4-5}"
-export CLAUDE_MODEL_OPUS_AZURE="${CLAUDE_MODEL_OPUS_AZURE:-claude-opus-4-5}"
+export CLAUDE_MODEL_OPUS_AZURE="${CLAUDE_MODEL_OPUS_AZURE:-claude-opus-4-6}"
 export CLAUDE_MODEL_HAIKU_AZURE="${CLAUDE_MODEL_HAIKU_AZURE:-claude-haiku-4-5}"
 
 # Vercel AI Gateway Model Defaults
 # See: https://vercel.com/ai-gateway
 # Uses format: anthropic/model-name (no date suffix)
 export CLAUDE_MODEL_SONNET_VERCEL="${CLAUDE_MODEL_SONNET_VERCEL:-anthropic/claude-sonnet-4.5}"
-export CLAUDE_MODEL_OPUS_VERCEL="${CLAUDE_MODEL_OPUS_VERCEL:-anthropic/claude-opus-4.5}"
+export CLAUDE_MODEL_OPUS_VERCEL="${CLAUDE_MODEL_OPUS_VERCEL:-anthropic/claude-opus-4.6}"
 export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-haiku-4.5}"
 
 # Ollama Model Defaults (Local)
@@ -68,9 +70,29 @@ export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-
 # OpenRouter Model Defaults
 # See: https://openrouter.ai
 # Uses format: provider/model-name (with dots like 4.5, not dashes)
-export ROUTER_MODEL_HIGH="${ROUTER_MODEL_HIGH:-anthropic/claude-opus-4.5}"
+export ROUTER_MODEL_HIGH="${ROUTER_MODEL_HIGH:-anthropic/claude-opus-4.6}"
 export ROUTER_MODEL_MID="${ROUTER_MODEL_MID:-anthropic/claude-sonnet-4.5}"
 export ROUTER_MODEL_LOW="${ROUTER_MODEL_LOW:-anthropic/claude-haiku-4.5}"
+
+# LM Studio Model Defaults (Local)
+# See: https://lmstudio.ai/blog/claudecode
+#
+# Models use format: provider/model-name
+# Example: openai/gpt-oss-20b, ibm/granite-4-micro
+#
+# By default, AI Runner uses the first loaded model for ALL tiers.
+# (Same model for all tiers avoids model swapping overhead)
+#
+# To use different models per tier, set in ~/.ai-runner/secrets.sh:
+#   export LMSTUDIO_MODEL_HIGH="openai/gpt-oss-20b"
+#   export LMSTUDIO_MODEL_MID="openai/gpt-oss-20b"
+#   export LMSTUDIO_MODEL_LOW="ibm/granite-4-micro"
+#
+# APPLE SILICON USERS: LM Studio supports MLX models which are
+# significantly faster than GGUF on M1/M2/M3/M4 chips.
+#
+# IMPORTANT: LM Studio recommends 25K+ context for Claude Code.
+# Configure context size in LM Studio UI or via API parameters.
 
 # Small/Fast Model Defaults (for background operations)
 # These are used by Claude Code for sub-agents, file operations, and auxiliary tasks

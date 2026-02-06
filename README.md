@@ -10,7 +10,7 @@ Write prompts in markdown, and run them like programs using a universal prompt i
 **What it does:**
 - Executable markdown with `#!/usr/bin/env ai` shebang for script automation
 - Unix pipe support: pipe data into scripts, redirect output, chain in pipelines
-- Provider switching: bypass rate limits with Ollama (local/free), AWS, Vertex, Azure, Vercel, Anthropic API
+- Provider switching: bypass rate limits with Ollama, LM Studio (local/free), AWS, Vertex, Azure, Vercel, Anthropic API
 - Model tiers: `--opus`/`--high`, `--sonnet`/`--mid`, `--haiku`/`--low`
 - Session continuity: `--resume` picks up your last conversation on any provider
 - Non-destructive: plain `claude` always works as before
@@ -81,13 +81,15 @@ This works for simple prompts but lacks provider switching, model selection, std
 | `ai-sessions` | View active AI coding sessions |
 | `ai-status` | Show current configuration and provider status |
 
+Running `ai` with no flags is equivalent to running `claude` with your regular subscription settings, but session-scoped — your environment is automatically restored on exit. Add provider flags to switch, or use `ai --aws --opus --set-default` to save your preferred provider and model for future runs.
+
 ### Usage Examples
 
 ```bash
-# Run a markdown script
+# Run a markdown script (uses your Claude subscription, same as 'claude')
 ai task.md
 
-# Interactive mode with provider
+# Switch provider with flags
 ai --aws                          # AWS Bedrock
 ai --vertex                       # Google Vertex AI
 ai --ollama                       # Ollama (local, free)
@@ -96,8 +98,8 @@ ai --azure                        # Microsoft Azure
 ai --vercel                       # Vercel AI Gateway
 ai --pro                          # Claude Pro/Max subscription
 
-# Model selection (Pro defaults to Opus, API providers default to Sonnet)
-ai --opus task.md                 # Opus 4.5 (most capable)
+# Model selection (Pro defaults to latest, API providers default to Sonnet)
+ai --opus task.md                 # Opus 4.6 (most capable)
 ai --sonnet task.md               # Sonnet 4.5
 ai --haiku task.md                # Haiku 4.5 (fastest)
 
@@ -108,6 +110,10 @@ ai --low task.md                  # Same as --haiku
 
 # Resume last conversation
 ai --aws --resume
+
+# Set a default provider+model for when you run 'ai' with no flags
+ai --vercel --opus --set-default
+ai --clear-default              # Remove saved default
 ```
 
 ## Features
@@ -197,155 +203,99 @@ curl -fsSL https://example.com/script.md | ai --aws
 
 ## Providers
 
-### Currently Implemented
+| Flag | Provider | Type | Notes |
+|------|----------|------|-------|
+| `--ollama` / `--ol` | Ollama | Local | Free, no API costs, cloud option |
+| `--lmstudio` / `--lm` | LM Studio | Local | MLX models (fast on Apple Silicon) |
+| `--aws` | AWS Bedrock | Cloud | Requires AWS credentials |
+| `--vertex` | Google Vertex AI | Cloud | Requires GCP project |
+| `--apikey` | Anthropic API | Cloud | Direct API access |
+| `--azure` | Microsoft Azure | Cloud | Azure Foundry |
+| `--vercel` | Vercel AI Gateway | Cloud | Unified billing |
+| `--pro` | Claude Pro | Subscription | Default if logged in |
 
-| Flag | Provider | Notes |
-|------|----------|-------|
-| `--ollama` | Ollama (local) | Free, no API costs, runs locally |
-| `--aws` | AWS Bedrock | Requires AWS credentials |
-| `--vertex` | Google Vertex AI | Requires GCP project |
-| `--apikey` | Anthropic API | Direct API access |
-| `--azure` | Microsoft Azure | Azure Foundry |
-| `--vercel` | Vercel AI Gateway | Unified billing |
-| `--pro` | Claude Pro | Subscription-based (default) |
+### Quick Start Examples
 
-### Coming Soon
+```bash
+# Local providers (free, no API costs)
+ai --ollama                    # Ollama (GGUF models)
+ai --lm                        # LM Studio (MLX/GGUF, fast on Apple Silicon)
 
-| Flag | Provider | Notes |
-|------|----------|-------|
-| `--openrouter` / `--or` | OpenRouter | 500+ models, single API key |
-| `--lmstudio` | LM Studio | Local OpenAI-compatible |
-| `--openai` | Generic OpenAI | Any OpenAI-compatible endpoint |
+# Cloud providers
+ai --aws --opus task.md        # AWS Bedrock + Opus
+ai --vertex task.md            # Google Vertex AI
+ai --apikey task.md            # Anthropic API direct
+```
 
 ### Provider Setup
 
-Configure providers by adding credentials to `~/.ai-runner/secrets.sh`:
+#### Local Providers (Free, No API Keys)
+
+> **Hardware note:** Running local models requires significant RAM/VRAM — capable coding models need 24GB+ VRAM (or unified memory on Apple Silicon). Ollama's cloud models are a great alternative if your hardware is limited.
+
+**Ollama** — runs models locally or on Ollama's cloud:
+
+```bash
+# Install Ollama
+brew install ollama                   # macOS
+curl -fsSL https://ollama.com/install.sh | sh  # Linux / WSL
+
+# Quick setup (Ollama 0.15+)
+ollama launch claude                  # Auto-configure and launch Claude Code
+
+# Or manual setup
+ollama pull qwen3-coder               # Pull a model (needs 24GB+ VRAM)
+ai --ollama                           # Run with Ollama
+
+# Cloud models — no GPU required, runs on Ollama's servers
+ollama pull glm-4.7:cloud             # Tiny download, runs remotely
+ai --ollama --model glm-4.7:cloud
+```
+
+**LM Studio** — local models with MLX support (fast on Apple Silicon):
+
+```bash
+# 1. Download from lmstudio.ai and load a model
+# 2. Start the server: lms server start --port 1234
+ai --lm                               # Run with LM Studio
+```
+
+See **[docs/PROVIDERS.md](docs/PROVIDERS.md)** for model recommendations, configuration, and auto-download features.
+
+#### Cloud Providers
+
+Add your credentials to `~/.ai-runner/secrets.sh` (created by `./setup.sh`). AI Runner loads this file automatically — no need to set environment variables in your shell profile.
 
 ```bash
 nano ~/.ai-runner/secrets.sh
 ```
 
-#### Ollama (Local or Cloud)
-
-Ollama runs models locally (free) or on Ollama's cloud (no GPU needed).
-
-**Install Ollama:**
+Uncomment and fill in what you have:
 ```bash
-# macOS
-brew install ollama
+# Anthropic API
+export ANTHROPIC_API_KEY="sk-ant-..."
 
-# Linux / Windows (WSL)
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-##### Quick Setup (Recommended)
-
-Ollama 0.15+ can auto-configure Claude Code:
-
-```bash
-ollama launch claude          # Interactive setup, picks model, launches Claude
-ollama launch claude --config # Configure only, don't launch
-```
-
-##### Cloud Models (No GPU Required)
-
-Cloud models run on Ollama's infrastructure. Pull the manifest first:
-
-```bash
-ollama pull glm-4.7:cloud            # Tiny download, runs remotely
-ai --ollama --model glm-4.7:cloud
-```
-
-| Cloud Model | Description |
-|-------------|-------------|
-| `glm-4.7:cloud` | High-performance, 128K context, tool-calling |
-| `minimax-m2.1:cloud` | Fast responses, good for iteration |
-
-See [Ollama cloud models](https://ollama.com/search?c=cloud) for full list.
-
-##### Local Models (Free, Private)
-
-```bash
-ollama pull qwen3-coder   # Coding optimized (needs 24GB VRAM)
-ollama pull glm-4.7       # 128K context, tool-calling
-ai --ollama
-```
-
-**Recommended:** `qwen3-coder`, `glm-4.7`, `gpt-oss:20b`
-
-##### Model Aliases
-
-Create aliases for tools expecting Anthropic model names:
-
-```bash
-ollama cp qwen3-coder claude-sonnet-4-5-20250514
-ai --ollama --model claude-sonnet-4-5-20250514
-```
-
-##### Configuration
-
-**Override defaults** in `~/.ai-runner/secrets.sh`:
-```bash
-export OLLAMA_MODEL_MID="qwen3-coder"        # Default model
-export OLLAMA_SMALL_FAST_MODEL="gemma3"      # Background model (24GB+ VRAM)
-```
-
-> **Note:** By default, Ollama uses the same model for both main and background operations to avoid VRAM swapping.
-
-See [Ollama Anthropic API compatibility](https://docs.ollama.com/api/anthropic-compatibility) for details.
-
-#### AWS Bedrock
-
-```bash
+# AWS Bedrock
 export AWS_PROFILE="your-profile-name"
 export AWS_REGION="us-west-2"
-```
 
-See [AWS Bedrock setup](https://code.claude.com/docs/en/amazon-bedrock) for all auth options.
-
-#### Google Vertex AI
-
-```bash
+# Google Vertex AI
 export ANTHROPIC_VERTEX_PROJECT_ID="your-gcp-project-id"
 export CLOUD_ML_REGION="global"
-```
 
-See [Vertex AI setup](https://code.claude.com/docs/en/google-vertex-ai) for authentication methods.
+# Vercel AI Gateway
+export VERCEL_AI_GATEWAY_TOKEN="vck_..."
 
-#### Anthropic API
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-#### Microsoft Azure
-
-```bash
+# Microsoft Azure
 export ANTHROPIC_FOUNDRY_API_KEY="your-azure-api-key"
 export ANTHROPIC_FOUNDRY_RESOURCE="your-resource-name"
 ```
 
-See [Microsoft Foundry setup](https://code.claude.com/docs/en/microsoft-foundry) for details.
-
-#### Vercel AI Gateway
-
-```bash
-export VERCEL_AI_GATEWAY_TOKEN="vck_..."
-export VERCEL_AI_GATEWAY_URL="https://ai-gateway.vercel.sh"  # Optional
-```
+You only need to configure the providers you want to use. See **[docs/PROVIDERS.md](docs/PROVIDERS.md)** for all authentication options and detailed setup instructions.
 
 ## Tools
 
-### Currently Supported
-
 - **Claude Code** (`--tool cc`) - Anthropic's official coding CLI (default)
-
-### Coming Soon
-
-- **OpenCode** (`--tool opencode`) - Open-source Go-based alternative
-- **Aider** (`--tool aider`) - Git-aware multi-file AI pair programming
-- **Codex CLI** (`--tool codex`) - OpenAI's Rust-based coding CLI
-- **Gemini CLI** (`--tool gemini`) - Google's TypeScript CLI
 
 ## Switching Providers to Avoid Rate Limits
 
@@ -455,6 +405,10 @@ export CLAUDE_MODEL_SONNET_AWS="global.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 # Override small/fast model for background operations
 export CLAUDE_SMALL_FAST_MODEL_AWS="us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+# Save preferred provider+model as default
+ai --aws --opus --set-default
+ai --clear-default              # Remove saved default
 ```
 
 ### Dual Model Configuration
@@ -488,10 +442,10 @@ ai-status                              # Shows authentication and configuration
 
 ### Session-Scoped Behavior
 
-All wrapper scripts are session-scoped:
-- Changes only affect the active session
-- On exit, original settings automatically restore
-- Plain `claude` always runs in native state
+`ai` with no flags uses your regular Claude subscription — identical to running `claude` directly. Provider flags (`--aws`, `--ollama`, etc.) only affect the current session:
+- On exit, your original Claude settings are automatically restored
+- Plain `claude` in another terminal is completely unaffected
+- No global configuration is changed
 
 ## Versioning
 

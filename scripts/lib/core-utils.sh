@@ -118,6 +118,29 @@ load_config_quiet() {
     fi
 }
 
+# Defaults file for persistent user preferences (set by --set-default)
+DEFAULTS_FILE="${CONFIG_DIR}/defaults.sh"
+
+load_defaults() {
+    [ -f "$DEFAULTS_FILE" ] && source "$DEFAULTS_FILE"
+}
+
+save_defaults() {
+    local provider="$1" model_tier="$2"
+    mkdir -p "$CONFIG_DIR"
+    cat > "$DEFAULTS_FILE" << EOF
+# AI Runner defaults (set by: ai --set-default)
+AI_DEFAULT_PROVIDER="$provider"
+AI_DEFAULT_MODEL_TIER="$model_tier"
+EOF
+    print_success "Saved default: ${provider}${model_tier:+ --$model_tier}"
+}
+
+clear_defaults() {
+    rm -f "$DEFAULTS_FILE"
+    print_success "Defaults cleared. 'ai' will use your Claude subscription (same as 'claude')."
+}
+
 # Helper to parse model arguments
 # Usage: parse_model_args "PROVIDER_SUFFIX" "$@"
 # Sets ANTHROPIC_MODEL and ANTHROPIC_SMALL_FAST_MODEL

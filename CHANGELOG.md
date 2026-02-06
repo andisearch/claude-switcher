@@ -5,6 +5,51 @@ All notable changes to AI Runner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-05
+
+### Added
+- **`--set-default` / `--clear-default` flags**: Save preferred provider and model tier as persistent defaults
+  - `ai --vercel --opus --set-default` saves preference to `~/.ai-runner/defaults.sh`
+  - `ai --clear-default` removes saved defaults
+  - CLI flags always override saved defaults
+- **Setup model update prompt**: `setup.sh` now detects model config changes and prompts before overwriting
+
+### Changed
+- **Opus 4.6 model IDs**: Updated Opus from 4.5 to 4.6 across all providers
+  - Anthropic API: `claude-opus-4-6`
+  - AWS Bedrock: `global.anthropic.claude-opus-4-6-v1`
+  - Vertex AI: `claude-opus-4-6`
+  - Azure: `claude-opus-4-6`
+  - Vercel: `anthropic/claude-opus-4.6`
+  - OpenRouter: `anthropic/claude-opus-4.6`
+- **Pro default behavior**: `ai --pro` (no model flag) no longer hardcodes Opus; Claude Code uses its own latest default model
+
+### Fixed
+- Vertex region override loop now includes `VERTEX_REGION_CLAUDE_4_6_OPUS`
+- OpenRouter model IDs in `secrets.example.sh` now use dots (matching `config/models.sh`)
+- Fixed incorrect Sonnet date in `docs/PROVIDERS.md` model alias example
+
+## [2.1.0] - 2026-01-30
+
+### Added
+- **LM Studio Provider**: Local AI with MLX support via `--lmstudio` or `--lm` flag
+  - Anthropic-compatible API on localhost:1234
+  - MLX models for faster inference on Apple Silicon
+  - Auto-detects loaded models from LM Studio server
+  - See [docs/PROVIDERS.md](docs/PROVIDERS.md) for setup
+- **Auto-Download Models**: Both Ollama and LM Studio now offer to download missing models
+  - `ai --ollama --model qwen3` prompts to pull if not installed
+  - `ai --lm --model publisher/model` prompts to download if not found
+  - Ollama offers choice between local and cloud versions (recommends cloud for < 20GB VRAM)
+  - Works in interactive mode only (non-interactive fails gracefully)
+- **Provider Flag Shortcuts**: `--ol` for Ollama, `--lm` for LM Studio
+- **Model Load/Unload**: LM Studio provider can load/unload models via REST API
+- **Shared System Utils**: `scripts/lib/system-utils.sh` for RAM/GPU/VRAM detection
+- **Provider Documentation**: Moved detailed provider setup to `docs/PROVIDERS.md`
+
+### Changed
+- README provider section simplified with summary table + link to docs
+
 ## [2.0.1] - 2026-01-26
 
 ### Changed

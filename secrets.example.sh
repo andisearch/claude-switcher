@@ -42,7 +42,7 @@
 #   Run: gcloud auth login
 #   No additional environment variable needed
 #
-# The claude-vertex script automatically detects and uses the appropriate method
+# AI Runner automatically detects and uses the appropriate method
 # based on what's available in your environment.
 
 # Optional: Set specific regions for each model (defaults to CLOUD_ML_REGION if not set)
@@ -51,7 +51,10 @@
 # export VERTEX_REGION_CLAUDE_3_7_SONNET="us-east5"
 # export VERTEX_REGION_CLAUDE_4_0_OPUS="europe-west1"
 # export VERTEX_REGION_CLAUDE_4_0_SONNET="us-east5"
+# export VERTEX_REGION_CLAUDE_4_1_OPUS="europe-west1"
+# export VERTEX_REGION_CLAUDE_4_5_SONNET="us-east5"
 # export VERTEX_REGION_CLAUDE_4_5_OPUS="europe-west1"
+# export VERTEX_REGION_CLAUDE_4_6_OPUS="europe-west1"
 
 # Anthropic API Key
 # See: https://console.anthropic.com/
@@ -88,27 +91,27 @@
 
 # AWS Bedrock Models
 # export CLAUDE_MODEL_SONNET_AWS="global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-# export CLAUDE_MODEL_OPUS_AWS="global.anthropic.claude-opus-4-5-20251101-v1:0"
+# export CLAUDE_MODEL_OPUS_AWS="global.anthropic.claude-opus-4-6-v1"
 # export CLAUDE_MODEL_HAIKU_AWS="us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 # Google Vertex Models
 # export CLAUDE_MODEL_SONNET_VERTEX="claude-sonnet-4-5@20250929"
-# export CLAUDE_MODEL_OPUS_VERTEX="claude-opus-4-5@20251101"
+# export CLAUDE_MODEL_OPUS_VERTEX="claude-opus-4-6"
 # export CLAUDE_MODEL_HAIKU_VERTEX="claude-haiku-4-5@20251001"
 
 # Anthropic API Models
 # export CLAUDE_MODEL_SONNET_ANTHROPIC="claude-sonnet-4-5-20250929"
-# export CLAUDE_MODEL_OPUS_ANTHROPIC="claude-opus-4-5-20251101"
+# export CLAUDE_MODEL_OPUS_ANTHROPIC="claude-opus-4-6"
 # export CLAUDE_MODEL_HAIKU_ANTHROPIC="claude-haiku-4-5"
 
 # Microsoft Foundry/Azure Models (deployment names - must match your Azure deployments)
 # export CLAUDE_MODEL_SONNET_AZURE="claude-sonnet-4-5"
-# export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-5"
+# export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-6"
 # export CLAUDE_MODEL_HAIKU_AZURE="claude-haiku-4-5"
 
 # Vercel AI Gateway Models
 # export CLAUDE_MODEL_SONNET_VERCEL="anthropic/claude-sonnet-4.5"
-# export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4.5"
+# export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4.6"
 # export CLAUDE_MODEL_HAIKU_VERCEL="anthropic/claude-haiku-4.5"
 
 # ============================================================================
@@ -150,6 +153,23 @@
 # export OLLAMA_MODEL_LOW="qwen3:8b"             # For --haiku/--low
 
 # ============================================================================
+# LM Studio Configuration (Local)
+# ============================================================================
+# LM Studio runs local models with Anthropic API compatibility.
+# Especially fast on Apple Silicon with MLX models.
+# See: https://lmstudio.ai/blog/claudecode
+
+# LM Studio server URL (default: http://localhost:1234)
+# export LMSTUDIO_HOST="http://localhost:1234"
+
+# LM Studio Model Tier Mappings
+# By default, AI Runner uses the first loaded model for all tiers.
+# Override to use different models per tier:
+# export LMSTUDIO_MODEL_HIGH="openai/gpt-oss-20b"
+# export LMSTUDIO_MODEL_MID="openai/gpt-oss-20b"
+# export LMSTUDIO_MODEL_LOW="ibm/granite-4-micro"
+
+# ============================================================================
 # OpenRouter Configuration
 # ============================================================================
 # OpenRouter provides access to 500+ models with a single API key.
@@ -158,28 +178,21 @@
 # export OPENROUTER_API_KEY="sk-or-..."
 
 # OpenRouter Model Tier Mappings
-# export ROUTER_MODEL_HIGH="anthropic/claude-opus-4-5"
-# export ROUTER_MODEL_MID="anthropic/claude-sonnet-4-5"
-# export ROUTER_MODEL_LOW="anthropic/claude-haiku-4-5"
+# export ROUTER_MODEL_HIGH="anthropic/claude-opus-4.6"
+# export ROUTER_MODEL_MID="anthropic/claude-sonnet-4.5"
+# export ROUTER_MODEL_LOW="anthropic/claude-haiku-4.5"
 
 # ============================================================================
 # AI Runner Defaults
 # ============================================================================
 
 # Default provider (used when no provider flag specified)
-# Options: ollama, pro, apikey, aws, vertex, azure, vercel
+# Options: ollama, pro, apikey, aws, vertex, azure, vercel, lmstudio
 # export DEFAULT_PROVIDER="ollama"
 
-# Default model tier (used when no model flag specified)
-# Options: high, mid, low
-# export DEFAULT_MODEL_TIER="mid"
-
-# Fallback provider (used when primary provider fails)
-# export FALLBACK_PROVIDER="ollama"
-# export FALLBACK_MODEL="qwen3-coder:32b"
-
-# Disable automatic fallback
-# export AI_RUNNER_NO_FALLBACK=1
+# Tip: You can also save defaults interactively:
+#   ai --aws --opus --set-default    # Save preferred provider+model
+#   ai --clear-default               # Remove saved default
 
 # Skip config migration prompt
 # export AI_RUNNER_SKIP_MIGRATION=1

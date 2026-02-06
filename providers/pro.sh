@@ -40,7 +40,7 @@ EOF
 }
 
 provider_setup_env() {
-    local tier="${1:-mid}"
+    local tier="$1"
     local custom_model="$2"
 
     # Save current environment
@@ -56,9 +56,10 @@ provider_setup_env() {
     unset ANTHROPIC_AUTH_TOKEN
 
     # Set model based on tier or custom model
+    # If neither is specified, leave ANTHROPIC_MODEL unset so Claude Code uses its own default
     if [ -n "$custom_model" ]; then
         export ANTHROPIC_MODEL="$custom_model"
-    else
+    elif [ -n "$tier" ]; then
         export ANTHROPIC_MODEL=$(provider_get_model_id "$tier")
     fi
 
@@ -74,7 +75,7 @@ provider_get_model_id() {
 
     # Use Anthropic API model names for Claude Pro
     case "$tier" in
-        high) echo "claude-opus-4-5-20251101" ;;
+        high) echo "claude-opus-4-6" ;;
         mid)  echo "claude-sonnet-4-5-20250929" ;;
         low)  echo "claude-haiku-4-5" ;;
         *)    echo "claude-sonnet-4-5-20250929" ;;

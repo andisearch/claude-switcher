@@ -222,10 +222,10 @@ test_backward_compat() {
 test_provider_flags() {
     test_header "Provider flag parsing"
 
-    local flags=("aws" "vertex" "apikey" "azure" "vercel" "pro" "ollama")
+    local flags=("aws" "vertex" "apikey" "azure" "vercel" "pro" "ollama" "lmstudio")
 
     for flag in "${flags[@]}"; do
-        if grep -q -- "--$flag)" "$PROJECT_DIR/scripts/ai"; then
+        if grep -q -- "--$flag" "$PROJECT_DIR/scripts/ai"; then
             pass "Provider flag --$flag recognized"
         else
             fail "Provider flag --$flag not found"
@@ -256,7 +256,7 @@ test_model_flags() {
 test_provider_modules() {
     test_header "Provider modules exist"
 
-    local providers=("aws.sh" "vertex.sh" "ollama.sh" "apikey.sh" "azure.sh" "vercel.sh" "pro.sh")
+    local providers=("aws.sh" "vertex.sh" "ollama.sh" "apikey.sh" "azure.sh" "vercel.sh" "pro.sh" "lmstudio.sh")
 
     for provider in "${providers[@]}"; do
         if [[ -x "$PROJECT_DIR/providers/$provider" ]]; then
@@ -311,7 +311,33 @@ test_utility_commands() {
 }
 
 #=============================================================================
-# TEST 15: Version flag
+# TEST 15: Default preference flags
+#=============================================================================
+test_default_flags() {
+    test_header "Default preference flags"
+
+    if grep -q 'set-default' "$PROJECT_DIR/scripts/ai"; then
+        pass "--set-default flag supported"
+    else
+        fail "--set-default flag not found"
+    fi
+
+    if grep -q 'clear-default' "$PROJECT_DIR/scripts/ai"; then
+        pass "--clear-default flag supported"
+    else
+        fail "--clear-default flag not found"
+    fi
+
+    # Check that core-utils has defaults functions
+    if grep -q 'load_defaults' "$PROJECT_DIR/scripts/lib/core-utils.sh"; then
+        pass "load_defaults function exists"
+    else
+        fail "load_defaults function not found"
+    fi
+}
+
+#=============================================================================
+# TEST 16: Version flag
 #=============================================================================
 test_version_flag() {
     test_header "Version flag"
@@ -356,6 +382,7 @@ main() {
     test_provider_modules
     test_tool_modules
     test_utility_commands
+    test_default_flags
     test_version_flag
 
     echo ""

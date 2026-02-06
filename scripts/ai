@@ -53,6 +53,8 @@ NEEDS_VERBOSE=false
 STDIN_POSITION="prepend"
 SHOW_VERSION=false
 SHOW_HELP=false
+SET_DEFAULT=false
+CLEAR_DEFAULT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -89,11 +91,9 @@ while [[ $# -gt 0 ]]; do
         --vercel)  PROVIDER_FLAG="vercel"; shift ;;
         --pro)     PROVIDER_FLAG="pro"; shift ;;
 
-        # Provider selection (new)
-        --ollama)     PROVIDER_FLAG="ollama"; shift ;;
-        --openrouter|--or) PROVIDER_FLAG="openrouter"; shift ;;
-        --lmstudio)   PROVIDER_FLAG="lmstudio"; shift ;;
-        --openai)     PROVIDER_FLAG="openai"; shift ;;
+        # Provider selection (local)
+        --ollama|--ol)     PROVIDER_FLAG="ollama"; shift ;;
+        --lmstudio|--lm) PROVIDER_FLAG="lmstudio"; shift ;;
 
         # Model flags (Anthropic tier names)
         --opus)   MODEL_TIER="high"; shift ;;
@@ -142,6 +142,10 @@ while [[ $# -gt 0 ]]; do
             SHOW_HELP=true
             shift ;;
 
+        # Default preference flags
+        --set-default) SET_DEFAULT=true; shift ;;
+        --clear-default) CLEAR_DEFAULT=true; shift ;;
+
         # Everything else passes through to the tool
         *)
             CLAUDE_ARGS+=("$1")
@@ -163,7 +167,7 @@ Usage: ai [OPTIONS] [file.md]
 Universal AI prompt interpreter - execute prompts across tools and providers.
 
 INTERACTIVE MODE (no .md file):
-  ai                        Auto-detect tool and provider
+  ai                        Same as 'claude' (your subscription, session-scoped)
   ai --aws --opus           Claude Code + AWS Bedrock + Opus
   ai --ollama               Claude Code + local Ollama (free!)
   ai --tool cc --vercel     Claude Code + Vercel AI Gateway
@@ -181,18 +185,15 @@ TOOL FLAGS:
                   Available: cc (claude-code)
   --cc            Shorthand for --tool cc
 
-PROVIDER FLAGS (existing):
+PROVIDER FLAGS:
   --aws           AWS Bedrock
   --vertex        Google Vertex AI
   --apikey        Anthropic API direct
   --azure         Microsoft Azure
   --vercel        Vercel AI Gateway
   --pro           Claude Pro subscription
-
-PROVIDER FLAGS (new):
-  --ollama        Local Ollama (Anthropic API compatible)
-  --openrouter    OpenRouter (500+ models) - alias: --or
-  --lmstudio      LM Studio (local)
+  --ollama        Local Ollama (Anthropic API compatible) - alias: --ol
+  --lmstudio      LM Studio (local) - alias: --lm
 
 MODEL FLAGS:
   --opus, --high   Use highest tier model
@@ -203,6 +204,8 @@ MODEL FLAGS:
 OTHER FLAGS:
   --output-format <fmt>   Output format: text, json, stream-json
   --stdin-position <pos>  Where to place piped input: 'prepend' (default) or 'append'
+  --set-default           Save current provider+model as default for future runs
+  --clear-default         Remove saved defaults
   --version, -v           Show version
   --help, -h              Show this help
 
@@ -228,6 +231,19 @@ fi
 
 # Load configuration
 load_config_quiet
+
+# Load saved defaults
+load_defaults
+
+# Handle --clear-default (standalone action)
+if [[ "$CLEAR_DEFAULT" == true ]]; then
+    clear_defaults
+    exit 0
+fi
+
+# Apply saved defaults if no CLI flags
+[[ -z "$PROVIDER_FLAG" && -n "$AI_DEFAULT_PROVIDER" ]] && PROVIDER_FLAG="$AI_DEFAULT_PROVIDER"
+[[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$AI_DEFAULT_MODEL_TIER" ]] && MODEL_TIER="$AI_DEFAULT_MODEL_TIER"
 
 # First-time setup (if needed and interactive)
 if needs_first_time_setup && is_interactive; then
@@ -286,12 +302,10 @@ if ! tool_supports_provider "$PROVIDER_FLAG"; then
 fi
 
 # Set default model tier if not specified
-# Pro subscription defaults to "high" (Opus) to match native claude command
-# API/BYOK providers default to "mid" (Sonnet) to manage costs
+# Pro subscription: leave unset so Claude Code uses its own latest default
+# API/BYOK providers: default to "mid" (Sonnet) to manage costs
 if [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" ]]; then
-    if [[ "$PROVIDER_FLAG" == "pro" ]]; then
-        MODEL_TIER="high"
-    else
+    if [[ "$PROVIDER_FLAG" != "pro" ]]; then
         MODEL_TIER="mid"
     fi
 fi
@@ -305,6 +319,11 @@ if ! provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL"; then
     exit 1
 fi
 
+# Save as default if requested
+if [[ "$SET_DEFAULT" == true ]]; then
+    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER"
+fi
+
 # Setup tool environment
 tool_setup_env
 
@@ -316,7 +335,7 @@ export AI_SESSION_ID
 write_session_info \
     "$(provider_name)" \
     "BYOK" \
-    "$ANTHROPIC_MODEL" \
+    "${ANTHROPIC_MODEL:-(system default)}" \
     "$ANTHROPIC_SMALL_FAST_MODEL" \
     "$(provider_get_region 2>/dev/null || echo '')" \
     "$(provider_get_project 2>/dev/null || echo '')" \
@@ -368,7 +387,7 @@ $STDIN_CONTENT"
     # Show status in interactive mode
     if is_interactive; then
         print_status "Using: $(tool_name) + $(provider_name)"
-        print_status "Model: $ANTHROPIC_MODEL"
+        print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"
     fi
 
     # Execute with prompt mode
@@ -427,7 +446,7 @@ if [[ -n "$STDIN_CONTENT" ]]; then
     # Show status in interactive mode
     if is_interactive; then
         print_status "Using: $(tool_name) + $(provider_name)"
-        print_status "Model: $ANTHROPIC_MODEL"
+        print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"
     fi
 
     # Execute with prompt mode
@@ -445,7 +464,7 @@ display_banner
 print_success "$(tool_name) + $(provider_name) mode activated"
 print_status "- Provider: $(provider_name)"
 print_status "- Auth: $(provider_get_auth_method)"
-print_status "- Model: $ANTHROPIC_MODEL"
+print_status "- Model: ${ANTHROPIC_MODEL:-(system default)}"
 if [[ -n "$ANTHROPIC_SMALL_FAST_MODEL" ]]; then
     print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
 fi

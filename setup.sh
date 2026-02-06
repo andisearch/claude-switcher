@@ -126,11 +126,29 @@ else
     echo "Secrets file already exists: $SECRETS_FILE (skipping overwrite)"
 fi
 
-# Copy models configuration (always update to get latest model definitions)
+# Copy models configuration
 MODELS_FILE="$CONFIG_DIR/models.sh"
-echo "Copying models configuration..."
-cp "$PROJECT_ROOT/config/models.sh" "$MODELS_FILE"
-echo -e "${GREEN}Updated $MODELS_FILE${NC}"
+if [ -f "$MODELS_FILE" ]; then
+    if ! diff -q "$PROJECT_ROOT/config/models.sh" "$MODELS_FILE" &>/dev/null; then
+        echo -e "${YELLOW}Model configuration has been updated.${NC}"
+        echo "  Changes include updated default model versions."
+        if [ -f "$SECRETS_FILE" ] && grep -q "CLAUDE_MODEL_OPUS" "$SECRETS_FILE" 2>/dev/null; then
+            echo -e "${YELLOW}  Note: You have model overrides in secrets.sh.${NC}"
+        fi
+        read -p "  Update to latest model defaults? [Y/n]: " update_choice
+        if [[ ! "$update_choice" =~ ^[Nn] ]]; then
+            cp "$PROJECT_ROOT/config/models.sh" "$MODELS_FILE"
+            echo -e "${GREEN}Updated $MODELS_FILE${NC}"
+        else
+            echo -e "${BLUE}Keeping existing model configuration${NC}"
+        fi
+    else
+        echo "Models configuration is up to date."
+    fi
+else
+    cp "$PROJECT_ROOT/config/models.sh" "$MODELS_FILE"
+    echo -e "${GREEN}Created $MODELS_FILE${NC}"
+fi
 
 # Copy banner configuration
 BANNER_FILE="$CONFIG_DIR/banner.sh"
@@ -291,6 +309,8 @@ NEEDS_VERBOSE=false
 STDIN_POSITION="prepend"
 SHOW_VERSION=false
 SHOW_HELP=false
+SET_DEFAULT=false
+CLEAR_DEFAULT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -311,10 +331,8 @@ while [[ $# -gt 0 ]]; do
         --azure) PROVIDER_FLAG="azure"; shift ;;
         --vercel) PROVIDER_FLAG="vercel"; shift ;;
         --pro) PROVIDER_FLAG="pro"; shift ;;
-        --ollama) PROVIDER_FLAG="ollama"; shift ;;
-        --openrouter|--or) PROVIDER_FLAG="openrouter"; shift ;;
-        --lmstudio) PROVIDER_FLAG="lmstudio"; shift ;;
-        --openai) PROVIDER_FLAG="openai"; shift ;;
+        --ollama|--ol) PROVIDER_FLAG="ollama"; shift ;;
+        --lmstudio|--lm) PROVIDER_FLAG="lmstudio"; shift ;;
         --opus|--high) MODEL_TIER="high"; shift ;;
         --sonnet|--mid) MODEL_TIER="mid"; shift ;;
         --haiku|--low) MODEL_TIER="low"; shift ;;
@@ -329,6 +347,8 @@ while [[ $# -gt 0 ]]; do
             [[ "$STDIN_POSITION" != "prepend" && "$STDIN_POSITION" != "append" ]] && \
                 { print_error "Invalid --stdin-position: $2"; exit 1; }
             shift 2 ;;
+        --set-default) SET_DEFAULT=true; shift ;;
+        --clear-default) CLEAR_DEFAULT=true; shift ;;
         --version|-v) SHOW_VERSION=true; shift ;;
         --help|-h) SHOW_HELP=true; shift ;;
         *) CLAUDE_ARGS+=("$1"); shift ;;
@@ -349,7 +369,7 @@ TOOL FLAGS:
 
 PROVIDER FLAGS:
   --aws, --vertex, --apikey, --azure, --vercel, --pro
-  --ollama, --openrouter (--or), --lmstudio
+  --ollama (--ol), --openrouter (--or), --lmstudio (--lm)
 
 MODEL FLAGS:
   --opus/--high, --sonnet/--mid, --haiku/--low, --model <id>
@@ -361,6 +381,19 @@ EOF
 
 needs_config_migration && migrate_config_interactive
 load_config_quiet
+
+# Load saved defaults
+load_defaults
+
+# Handle --clear-default (standalone action)
+if [[ "$CLEAR_DEFAULT" == true ]]; then
+    clear_defaults
+    exit 0
+fi
+
+# Apply saved defaults if no CLI flags
+[[ -z "$PROVIDER_FLAG" && -n "$AI_DEFAULT_PROVIDER" ]] && PROVIDER_FLAG="$AI_DEFAULT_PROVIDER"
+[[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$AI_DEFAULT_MODEL_TIER" ]] && MODEL_TIER="$AI_DEFAULT_MODEL_TIER"
 
 # First-time setup (if needed and interactive)
 if needs_first_time_setup && is_interactive; then
@@ -378,23 +411,27 @@ load_provider "$PROVIDER_FLAG" || exit 1
 provider_validate_config || { provider_get_validation_error; exit 1; }
 
 # Set default model tier if not specified
-# Pro subscription defaults to "high" (Opus) to match native claude command
-# API/BYOK providers default to "mid" (Sonnet) to manage costs
+# Pro subscription: leave unset so Claude Code uses its own latest default
+# API/BYOK providers: default to "mid" (Sonnet) to manage costs
 if [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" ]]; then
-    if [[ "$PROVIDER_FLAG" == "pro" ]]; then
-        MODEL_TIER="high"
-    else
+    if [[ "$PROVIDER_FLAG" != "pro" ]]; then
         MODEL_TIER="mid"
     fi
 fi
 
 provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL" || exit 1
+
+# Save as default if requested
+if [[ "$SET_DEFAULT" == true ]]; then
+    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER"
+fi
+
 tool_setup_env
 
 AI_SESSION_ID="$(tool_flag)-$(provider_flag)-$$-$(date +%s)"
 export AI_SESSION_ID
 
-write_session_info "$(provider_name)" "BYOK" "$ANTHROPIC_MODEL" "$ANTHROPIC_SMALL_FAST_MODEL" \
+write_session_info "$(provider_name)" "BYOK" "${ANTHROPIC_MODEL:-(system default)}" "$ANTHROPIC_SMALL_FAST_MODEL" \
     "$(provider_get_region 2>/dev/null || echo '')" "$(provider_get_project 2>/dev/null || echo '')" \
     "$(provider_get_auth_method)" "$(tool_flag)"
 
@@ -417,7 +454,7 @@ stdin:
 ---
 $STDIN_CONTENT"
     }
-    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: $ANTHROPIC_MODEL"; }
+    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
     tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
     exit $?
 fi
@@ -425,7 +462,7 @@ fi
 if [[ -n "$STDIN_CONTENT" ]]; then
     FIRST_LINE="${STDIN_CONTENT%%$'\n'*}"
     [[ "$FIRST_LINE" == "#!"* ]] && CONTENT="${STDIN_CONTENT#*$'\n'}" || CONTENT="$STDIN_CONTENT"
-    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: $ANTHROPIC_MODEL"; }
+    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
     tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
     exit $?
 fi
@@ -434,7 +471,7 @@ display_banner
 print_success "$(tool_name) + $(provider_name) mode activated"
 print_status "- Provider: $(provider_name)"
 print_status "- Auth: $(provider_get_auth_method)"
-print_status "- Model: $ANTHROPIC_MODEL"
+print_status "- Model: ${ANTHROPIC_MODEL:-(system default)}"
 [[ -n "$ANTHROPIC_SMALL_FAST_MODEL" ]] && print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
 
 # Show auth conflict note for API key mode

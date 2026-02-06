@@ -397,6 +397,10 @@ provider_setup_env() {
     # Set model
     if [ -n "$custom_model" ]; then
         export ANTHROPIC_MODEL="$custom_model"
+        # Check if custom model is available, offer to pull if not
+        if ! provider_model_available "$custom_model"; then
+            _ollama_ensure_model_available "$custom_model" || true
+        fi
     else
         export ANTHROPIC_MODEL=$(provider_get_model_id "$tier")
     fi
@@ -634,4 +638,189 @@ provider_list_models() {
 # Get Ollama server URL
 provider_get_url() {
     echo "${OLLAMA_HOST:-http://localhost:11434}"
+}
+
+#=============================================================================
+# Model Management (Download/Pull)
+#=============================================================================
+
+# Download/pull a model from Ollama library
+# Usage: _ollama_download_model "model-name"
+_ollama_download_model() {
+    local model="$1"
+    local ollama_url="${OLLAMA_HOST:-http://localhost:11434}"
+
+    echo "Pulling model: $model"
+    echo "This may take a while depending on model size..."
+    echo ""
+
+    # Use the REST API with streaming
+    curl -s -X POST "${ollama_url}/api/pull" \
+        -H "Content-Type: application/json" \
+        -d "{\"name\": \"$model\", \"stream\": true}" 2>&1 | \
+    while IFS= read -r line; do
+        # Parse streaming JSON response
+        local status
+        status=$(echo "$line" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+
+        if [ -n "$status" ]; then
+            case "$status" in
+                "pulling manifest"|"pulling"*)
+                    # Show download progress
+                    local completed total
+                    completed=$(echo "$line" | grep -o '"completed":[0-9]*' | cut -d: -f2)
+                    total=$(echo "$line" | grep -o '"total":[0-9]*' | cut -d: -f2)
+                    if [ -n "$completed" ] && [ -n "$total" ] && [ "$total" -gt 0 ]; then
+                        local pct=$((completed * 100 / total))
+                        printf "\r[%-50s] %d%%" "$(printf '#%.0s' $(seq 1 $((pct / 2))))" "$pct"
+                    fi
+                    ;;
+                "verifying sha256 digest"|"writing manifest"|"success")
+                    printf "\r%-60s\n" "$status"
+                    ;;
+            esac
+        fi
+    done
+
+    # Verify the model was pulled
+    if provider_model_available "$model"; then
+        echo ""
+        print_success "Model pulled successfully: $model"
+        return 0
+    else
+        echo ""
+        print_error "Failed to pull model: $model"
+        return 1
+    fi
+}
+
+# Interactive prompt to download a model if not available
+# Called when user specifies a model that doesn't exist
+# Always offers choice between local and cloud versions
+_ollama_ensure_model_available() {
+    local model="$1"
+
+    # Skip if not interactive
+    if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+        return 1
+    fi
+
+    # Check if model is already available
+    if provider_model_available "$model"; then
+        return 0
+    fi
+
+    # Check if this is already a cloud model
+    local is_cloud=false
+    if [[ "$model" == *":cloud"* ]]; then
+        is_cloud=true
+    fi
+
+    echo ""
+    print_warning "Model '$model' not found locally."
+
+    # For non-cloud models, offer both local and cloud options
+    if [ "$is_cloud" = false ]; then
+        local vram=$(_ollama_get_effective_vram)
+        local base_model="${model%%:*}"
+        local cloud_version="${base_model}:cloud"
+        local recommend_cloud=false
+
+        # Determine recommendation based on system capabilities
+        if _ollama_should_prefer_cloud; then
+            recommend_cloud=true
+        fi
+
+        echo ""
+        if [ "$recommend_cloud" = true ]; then
+            echo "Your system has ~${vram}GB usable VRAM - cloud is recommended."
+        else
+            echo "Your system has ~${vram}GB usable VRAM."
+        fi
+        echo ""
+        echo "Options:"
+        if [ "$recommend_cloud" = true ]; then
+            echo "  1) Use cloud version (recommended) - ${cloud_version}"
+            echo "     Runs on Ollama's servers, fast on any hardware"
+            echo "  2) Pull local version - $model"
+            echo "     Runs on your hardware"
+        else
+            echo "  1) Pull local version (recommended) - $model"
+            echo "     Runs on your hardware"
+            echo "  2) Use cloud version - ${cloud_version}"
+            echo "     Runs on Ollama's servers"
+        fi
+        echo ""
+        read -r -p "Choice [1]: " choice
+        choice="${choice:-1}"
+
+        case "$choice" in
+            1|"")
+                if [ "$recommend_cloud" = true ]; then
+                    echo ""
+                    print_status "Pulling cloud model: $cloud_version"
+                    if _ollama_download_model "$cloud_version"; then
+                        export ANTHROPIC_MODEL="$cloud_version"
+                        return 0
+                    else
+                        print_error "Failed to pull cloud model."
+                        return 1
+                    fi
+                else
+                    echo ""
+                    print_status "Pulling local model: $model"
+                    _ollama_download_model "$model"
+                    return $?
+                fi
+                ;;
+            2)
+                if [ "$recommend_cloud" = true ]; then
+                    echo ""
+                    print_status "Pulling local model: $model"
+                    _ollama_download_model "$model"
+                    return $?
+                else
+                    echo ""
+                    print_status "Pulling cloud model: $cloud_version"
+                    if _ollama_download_model "$cloud_version"; then
+                        export ANTHROPIC_MODEL="$cloud_version"
+                        return 0
+                    else
+                        print_error "Failed to pull cloud model."
+                        return 1
+                    fi
+                fi
+                ;;
+            *)
+                # Default to option 1
+                if [ "$recommend_cloud" = true ]; then
+                    echo ""
+                    print_status "Pulling cloud model: $cloud_version"
+                    if _ollama_download_model "$cloud_version"; then
+                        export ANTHROPIC_MODEL="$cloud_version"
+                        return 0
+                    else
+                        print_error "Failed to pull cloud model."
+                        return 1
+                    fi
+                else
+                    echo ""
+                    print_status "Pulling local model: $model"
+                    _ollama_download_model "$model"
+                    return $?
+                fi
+                ;;
+        esac
+    else
+        # Already a cloud model - just offer to pull it
+        read -r -p "Pull it from Ollama library? [Y/n]: " choice
+        choice="${choice:-Y}"
+
+        if [[ "$choice" =~ ^[Yy] ]]; then
+            _ollama_download_model "$model"
+            return $?
+        fi
+    fi
+
+    return 1
 }

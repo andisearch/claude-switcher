@@ -85,7 +85,7 @@ provider_get_model_id() {
     local tier=$(_normalize_tier "$1")
 
     case "$tier" in
-        high) echo "${CLAUDE_MODEL_OPUS_ANTHROPIC:-claude-opus-4-5-20251101}" ;;
+        high) echo "${CLAUDE_MODEL_OPUS_ANTHROPIC:-claude-opus-4-6}" ;;
         mid)  echo "${CLAUDE_MODEL_SONNET_ANTHROPIC:-claude-sonnet-4-5-20250929}" ;;
         low)  echo "${CLAUDE_MODEL_HAIKU_ANTHROPIC:-claude-haiku-4-5}" ;;
         *)    echo "${CLAUDE_MODEL_SONNET_ANTHROPIC:-claude-sonnet-4-5-20250929}" ;;
