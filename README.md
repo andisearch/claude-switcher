@@ -1,8 +1,14 @@
 # Andi AIRun
 
-Universal AI runner and interpreter for AI scripts.
+Universal AI Runner: an interpreter for AI scripts using Claude Code.
 
-Write prompts in markdown, and run them like programs using a universal prompt interpreter. Pipe data, chain with Unix tools, and specify models/providers in scripts. Switch models and providers at will. Extends [Claude Code](https://claude.ai/code) with multi-provider support.
+Write prompts in markdown, and run them like programs using a universal prompt interpreter. Pipe data, chain with Unix tools, and switch models and cloud providers on the command line or in scripts.
+
+`ai --vercel --haiku script.md`
+
+`cat data.json | ./script.md > results.txt`
+
+Extends [Claude Code](https://claude.ai/code) with on-the-fly multi-cloud support. Supports local models via Ollama and LM Studio for free, no-API-key access. Use any model with Claude Code -- including OpenAI, xAI, Google, and more -- via [Vercel AI Gateway](https://vercel.com/ai-gateway).
 
 [![GitHub Stars](https://img.shields.io/github/stars/andisearch/airun?style=for-the-badge&logo=github)](https://github.com/andisearch/airun/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Support-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/andisearch)
@@ -10,12 +16,22 @@ Write prompts in markdown, and run them like programs using a universal prompt i
 **What it does:**
 - Executable markdown with `#!/usr/bin/env ai` shebang for script automation
 - Unix pipe support: pipe data into scripts, redirect output, chain in pipelines
-- Provider switching: bypass rate limits with Ollama, LM Studio (local/free), AWS, Vertex, Azure, Vercel, Anthropic API
+- Provider switching: bypass rate limits with Anthropic API, Ollama / LM Studio (local and free), AWS, Vertex, Azure, Vercel (any model: OpenAI, xAI, Google, more)
 - Model tiers: `--opus`/`--high`, `--sonnet`/`--mid`, `--haiku`/`--low`
-- Session continuity: `--resume` picks up your last conversation on any provider
-- Non-destructive: plain `claude` always works as before
+- Session continuity: `--resume` picks up your previous chats with any model/provider
+- Non-destructive: plain `claude` always works untouched as before
 
 From [Andi AI Search](https://andisearch.com). [Star this repo](https://github.com/andisearch/airun) if it helps!
+
+## What's New
+
+| Date | Update |
+|------|--------|
+| Feb 2025 | Opus 4.6 models, persistent defaults (`--set-default`) |
+| Jan 2025 | LM Studio local support (`--lmstudio`) |
+| Jan 2025 | Ollama local support (`--ollama`) — free, no API key needed |
+| Jan 2025 | Piped script execution (`curl url \| ai`) |
+| Jan 2025 | Executable markdown with shebang (`#!/usr/bin/env ai`) |
 
 ## Quick Start
 
@@ -93,10 +109,19 @@ ai task.md
 ai --aws                          # AWS Bedrock
 ai --vertex                       # Google Vertex AI
 ai --ollama                       # Ollama (local, free)
+ai --lmstudio                     # LM Studio (local, free)
 ai --apikey                       # Anthropic API
 ai --azure                        # Microsoft Azure
 ai --vercel                       # Vercel AI Gateway
 ai --pro                          # Claude Pro/Max subscription
+
+# Local model selection
+ai --ollama --model qwen3-coder   # Ollama with specific model
+ai --ollama --model glm-4.7:cloud # Ollama cloud model (no GPU needed)
+ai --lmstudio --model openai/gpt-oss-20b  # LM Studio with specific model
+
+# Use any model via Vercel (OpenAI, xAI, Google, more)
+ai --vercel --model openai/gpt-5.2-codex      # OpenAI coding model
 
 # Model selection (Pro defaults to latest, API providers default to Sonnet)
 ai --opus task.md                 # Opus 4.6 (most capable)
@@ -211,7 +236,7 @@ curl -fsSL https://example.com/script.md | ai --aws
 | `--vertex` | Google Vertex AI | Cloud | Requires GCP project |
 | `--apikey` | Anthropic API | Cloud | Direct API access |
 | `--azure` | Microsoft Azure | Cloud | Azure Foundry |
-| `--vercel` | Vercel AI Gateway | Cloud | Unified billing |
+| `--vercel` | Vercel AI Gateway | Cloud | Any model: OpenAI, xAI, Google, Meta, more |
 | `--pro` | Claude Pro | Subscription | Default if logged in |
 
 ### Quick Start Examples
@@ -252,7 +277,7 @@ ollama pull glm-4.7:cloud             # Tiny download, runs remotely
 ai --ollama --model glm-4.7:cloud
 ```
 
-**LM Studio** — local models with MLX support (fast on Apple Silicon):
+**LM Studio** — local models with MLX support (fast on latest Apple Silicon):
 
 ```bash
 # 1. Download from lmstudio.ai and load a model
@@ -292,6 +317,17 @@ export ANTHROPIC_FOUNDRY_RESOURCE="your-resource-name"
 ```
 
 You only need to configure the providers you want to use. See **[docs/PROVIDERS.md](docs/PROVIDERS.md)** for all authentication options and detailed setup instructions.
+
+#### Use Any Model via Vercel AI Gateway
+
+Vercel AI Gateway supports 100+ models from OpenAI, xAI, Google, Meta, Mistral, DeepSeek, and more — all through one API. Use `--vercel --model provider/model` to run Claude Code's harness with any supported model:
+
+```bash
+ai --vercel --model openai/gpt-5.2-codex         # OpenAI coding model
+ai --vercel --model xai/grok-code-fast-1          # xAI coding model
+```
+
+When you specify a non-Anthropic model, both the main and background models are set to it automatically (avoiding provider mixing). See **[docs/PROVIDERS.md](docs/PROVIDERS.md)** for the full list of supported models and configuration options.
 
 ## Tools
 

@@ -4,22 +4,22 @@
 # Lists active AI sessions with tracking information across all tools
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARE_DIR="/usr/local/share/ai-runner"
 
 # Set branding
 export AI_RUNNER_BRAND="AI Runner"
 
-# Source utils
+# Source utils - check dev location first, then installed share directory
 if [ -f "$SCRIPT_DIR/lib/core-utils.sh" ]; then
     source "$SCRIPT_DIR/lib/core-utils.sh"
-elif [ -f "$SCRIPT_DIR/claude-switcher-utils.sh" ]; then
-    source "$SCRIPT_DIR/claude-switcher-utils.sh"
+elif [ -f "$SHARE_DIR/lib/core-utils.sh" ]; then
+    source "$SHARE_DIR/lib/core-utils.sh"
 else
     # Minimal fallback
     BLUE='\033[0;34m'
     NC='\033[0m'
-    print_status() { echo -e "${BLUE}[AI Sessions]${NC} $1"; }
-    SESSIONS_DIR="$HOME/.claude-switcher/sessions"
-    [ -d "$HOME/.ai-runner/sessions" ] && SESSIONS_DIR="$HOME/.ai-runner/sessions"
+    print_status() { echo -e "${BLUE}[AI Runner]${NC} $1"; }
+    SESSIONS_DIR="$HOME/.ai-runner/sessions"
 fi
 
 # Parse arguments for filtering
@@ -57,11 +57,18 @@ EOF
     esac
 done
 
+# Load defaults for display
+load_defaults 2>/dev/null || true
+
 # Clean up stale sessions
 cleanup_stale_sessions 2>/dev/null || true
 
 echo ""
 print_status "Active AI Sessions:"
+_defaults_desc=$(format_defaults 2>/dev/null)
+if [[ -n "$_defaults_desc" ]]; then
+    print_status "Saved defaults: ${_defaults_desc}  (clear with: ai --clear-default)"
+fi
 echo ""
 
 # Check if sessions directory exists and has any files

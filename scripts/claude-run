@@ -196,7 +196,7 @@ $STDIN_CONTENT"
                 parse_model_args "VERTEX" "${PROVIDER_ARGS[@]}"
                 ;;
             apikey)
-                export CLAUDE_CODE_USE_BEDROCK=0
+                unset CLAUDE_CODE_USE_BEDROCK
                 parse_model_args "ANTHROPIC" "${PROVIDER_ARGS[@]}"
                 ;;
             azure)
@@ -301,7 +301,7 @@ if [[ -n "$STDIN_CONTENT" ]]; then
                 parse_model_args "VERTEX" "${PROVIDER_ARGS[@]}"
                 ;;
             apikey)
-                export CLAUDE_CODE_USE_BEDROCK=0
+                unset CLAUDE_CODE_USE_BEDROCK
                 parse_model_args "ANTHROPIC" "${PROVIDER_ARGS[@]}"
                 ;;
             azure)

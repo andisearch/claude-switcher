@@ -156,6 +156,26 @@ echo "Copying banner configuration..."
 cp "$PROJECT_ROOT/config/banner.sh" "$BANNER_FILE"
 echo -e "${GREEN}Updated $BANNER_FILE${NC}"
 
+# Check for existing saved defaults
+DEFAULTS_FILE="$CONFIG_DIR/defaults.sh"
+if [ -f "$DEFAULTS_FILE" ]; then
+    source "$DEFAULTS_FILE"
+    _desc="${AI_DEFAULT_PROVIDER}"
+    if [ -n "$_desc" ]; then
+        [[ -n "$AI_DEFAULT_MODEL_TIER" ]] && _desc+=" --${AI_DEFAULT_MODEL_TIER}"
+        [[ -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && _desc+=" --model ${AI_DEFAULT_CUSTOM_MODEL}"
+        echo ""
+        echo -e "${BLUE}Saved defaults found:${NC}"
+        echo "  ai --${_desc}"
+        read -p "  Keep saved defaults? [Y/n]: " keep_defaults
+        if [[ "$keep_defaults" =~ ^[Nn] ]]; then
+            rm -f "$DEFAULTS_FILE"
+            echo -e "${GREEN}Defaults cleared${NC}"
+        else
+            echo -e "${GREEN}Keeping saved defaults${NC}"
+        fi
+    fi
+fi
 
 # --- 1b. Clean up any legacy apiKeyHelper artifacts ---
 
@@ -369,7 +389,7 @@ TOOL FLAGS:
 
 PROVIDER FLAGS:
   --aws, --vertex, --apikey, --azure, --vercel, --pro
-  --ollama (--ol), --openrouter (--or), --lmstudio (--lm)
+  --ollama (--ol), --lmstudio (--lm)
 
 MODEL FLAGS:
   --opus/--high, --sonnet/--mid, --haiku/--low, --model <id>
@@ -392,8 +412,19 @@ if [[ "$CLEAR_DEFAULT" == true ]]; then
 fi
 
 # Apply saved defaults if no CLI flags
+# Custom model is provider-specific, so only apply when provider also comes from defaults
+CLI_PROVIDER_FLAG="$PROVIDER_FLAG"
+CLI_MODEL_TIER="$MODEL_TIER"
+CLI_CUSTOM_MODEL="$CUSTOM_MODEL"
 [[ -z "$PROVIDER_FLAG" && -n "$AI_DEFAULT_PROVIDER" ]] && PROVIDER_FLAG="$AI_DEFAULT_PROVIDER"
 [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$AI_DEFAULT_MODEL_TIER" ]] && MODEL_TIER="$AI_DEFAULT_MODEL_TIER"
+[[ -z "$CLI_PROVIDER_FLAG" && -z "$CUSTOM_MODEL" && -z "$MODEL_TIER" && -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && CUSTOM_MODEL="$AI_DEFAULT_CUSTOM_MODEL"
+
+# Track whether we're running entirely from saved defaults (no CLI overrides)
+USING_DEFAULTS=false
+if [[ -z "$CLI_PROVIDER_FLAG" && -z "$CLI_MODEL_TIER" && -z "$CLI_CUSTOM_MODEL" ]] && [ -f "$DEFAULTS_FILE" ]; then
+    USING_DEFAULTS=true
+fi
 
 # First-time setup (if needed and interactive)
 if needs_first_time_setup && is_interactive; then
@@ -408,22 +439,48 @@ tool_is_installed || { tool_get_install_instructions; exit 1; }
 
 [[ -z "$PROVIDER_FLAG" ]] && { PROVIDER_FLAG=$(detect_default_provider); [[ -z "$PROVIDER_FLAG" ]] && { print_no_provider_error; exit 1; }; }
 load_provider "$PROVIDER_FLAG" || exit 1
-provider_validate_config || { provider_get_validation_error; exit 1; }
 
-# Set default model tier if not specified
-# Pro subscription: leave unset so Claude Code uses its own latest default
-# API/BYOK providers: default to "mid" (Sonnet) to manage costs
-if [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" ]]; then
-    if [[ "$PROVIDER_FLAG" != "pro" ]]; then
-        MODEL_TIER="mid"
+# Validate and setup provider (with fallback for local providers)
+_PROVIDER_FAILED=false
+if ! provider_validate_config; then
+    if [[ "$PROVIDER_FLAG" == "lmstudio" || "$PROVIDER_FLAG" == "ollama" ]]; then
+        provider_get_validation_error >&2; _PROVIDER_FAILED=true
+    else
+        provider_get_validation_error >&2; exit 1
     fi
 fi
-
-provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL" || exit 1
+if [[ "$_PROVIDER_FAILED" == false ]]; then
+    if [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && "$PROVIDER_FLAG" != "pro" ]]; then
+        MODEL_TIER="mid"
+    fi
+    if ! provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL"; then
+        if [[ "$PROVIDER_FLAG" == "lmstudio" || "$PROVIDER_FLAG" == "ollama" ]]; then
+            _PROVIDER_FAILED=true
+        else
+            exit 1
+        fi
+    fi
+fi
+if [[ "$_PROVIDER_FAILED" == true ]]; then
+    echo "" >&2
+    MODEL_TIER=""; CUSTOM_MODEL=""
+    _FAILED_PROVIDER="$PROVIDER_FLAG"
+    _saved_dp="$DEFAULT_PROVIDER"; DEFAULT_PROVIDER=""
+    PROVIDER_FLAG=$(detect_default_provider)
+    DEFAULT_PROVIDER="$_saved_dp"
+    if [[ -z "$PROVIDER_FLAG" || "$PROVIDER_FLAG" == "$_FAILED_PROVIDER" ]]; then
+        print_error "No fallback provider available. Run ai-status to check your setup."; exit 1
+    fi
+    load_provider "$PROVIDER_FLAG" || exit 1
+    provider_validate_config || { provider_get_validation_error >&2; exit 1; }
+    [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && "$PROVIDER_FLAG" != "pro" ]] && MODEL_TIER="mid"
+    provider_setup_env "$MODEL_TIER" "$CUSTOM_MODEL" || exit 1
+    print_warning "Falling back to $(provider_name)"
+fi
 
 # Save as default if requested
 if [[ "$SET_DEFAULT" == true ]]; then
-    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER"
+    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER" "$CUSTOM_MODEL"
 fi
 
 tool_setup_env
@@ -468,7 +525,9 @@ if [[ -n "$STDIN_CONTENT" ]]; then
 fi
 
 display_banner
-print_success "$(tool_name) + $(provider_name) mode activated"
+_activation_msg="$(tool_name) + $(provider_name) mode activated"
+[[ "$USING_DEFAULTS" == true ]] && _activation_msg+=" (default)"
+print_success "$_activation_msg"
 print_status "- Provider: $(provider_name)"
 print_status "- Auth: $(provider_get_auth_method)"
 print_status "- Model: ${ANTHROPIC_MODEL:-(system default)}"

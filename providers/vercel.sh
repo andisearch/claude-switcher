@@ -49,7 +49,6 @@ provider_setup_env() {
 
     # Disable other providers
     _provider_disable_all
-    export CLAUDE_CODE_USE_BEDROCK=0
 
     # Configure Vercel AI Gateway
     export ANTHROPIC_BASE_URL="${VERCEL_AI_GATEWAY_URL:-https://ai-gateway.vercel.sh}"
@@ -59,12 +58,17 @@ provider_setup_env() {
     # Set model
     if [ -n "$custom_model" ]; then
         export ANTHROPIC_MODEL="$custom_model"
+        # For non-Anthropic models, use the same model for background operations
+        # to avoid mixing providers (e.g., xAI main + Anthropic background)
+        if [[ "$custom_model" != anthropic/* ]]; then
+            export ANTHROPIC_SMALL_FAST_MODEL="$custom_model"
+        else
+            export ANTHROPIC_SMALL_FAST_MODEL=$(provider_get_small_model)
+        fi
     else
         export ANTHROPIC_MODEL=$(provider_get_model_id "$tier")
+        export ANTHROPIC_SMALL_FAST_MODEL=$(provider_get_small_model)
     fi
-
-    # Set small/fast model
-    export ANTHROPIC_SMALL_FAST_MODEL=$(provider_get_small_model)
 
     return 0
 }

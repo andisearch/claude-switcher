@@ -90,14 +90,19 @@ fi
 
 # --- 4. Handle config directories ---
 
+REMOVED_CONFIG_DIRS=()
+PRESERVED_CONFIG_DIRS=()
+
 echo ""
 for CONFIG_DIR in "$CONFIG_DIR_NEW" "$CONFIG_DIR_LEGACY"; do
     if [ -d "$CONFIG_DIR" ]; then
         echo -e "${YELLOW}Configuration directory found: $CONFIG_DIR${NC}"
         echo ""
-        echo "This directory contains:"
+        echo "This directory may contain:"
         echo "  - secrets.sh (your API keys and credentials)"
         echo "  - models.sh (model configuration)"
+        echo "  - defaults.sh (persistent provider/model defaults)"
+        echo "  - banner.sh (banner configuration)"
         echo "  - sessions/ (session tracking)"
         echo ""
 
@@ -108,15 +113,10 @@ for CONFIG_DIR in "$CONFIG_DIR_NEW" "$CONFIG_DIR_LEGACY"; do
             echo "Removing $CONFIG_DIR..."
             rm -rf "$CONFIG_DIR"
             echo -e "${GREEN}Configuration directory removed${NC}"
+            REMOVED_CONFIG_DIRS+=("$CONFIG_DIR")
         else
             echo -e "${YELLOW}Configuration directory preserved at $CONFIG_DIR${NC}"
-
-            # Clean up temporary state files only
-            if ls "$CONFIG_DIR"/apiKeyHelper-state-*.tmp 1> /dev/null 2>&1; then
-                echo "Cleaning up temporary state files..."
-                rm -f "$CONFIG_DIR"/apiKeyHelper-state-*.tmp
-                echo -e "${GREEN}Temporary files removed${NC}"
-            fi
+            PRESERVED_CONFIG_DIRS+=("$CONFIG_DIR")
         fi
         echo ""
     fi
@@ -160,15 +160,21 @@ with open(settings_file, 'w') as f:
     fi
 fi
 
-# --- 5b. Clean up any stale state files ---
+# --- 5b. Clean up stale state files from preserved directories ---
 
-echo ""
-echo "Cleaning up stale state files..."
-rm -f "$CONFIG_DIR_NEW/apiKeyHelper-state-"*.tmp 2>/dev/null
-rm -f "$CONFIG_DIR_NEW/current-mode.sh" 2>/dev/null
-rm -f "$CONFIG_DIR_LEGACY/apiKeyHelper-state-"*.tmp 2>/dev/null
-rm -f "$CONFIG_DIR_LEGACY/current-mode.sh" 2>/dev/null
-echo -e "${GREEN}Cleaned up state files${NC}"
+cleaned_state=false
+for dir in "${PRESERVED_CONFIG_DIRS[@]}"; do
+    if ls "$dir"/apiKeyHelper-state-*.tmp 1>/dev/null 2>&1 || [ -f "$dir/current-mode.sh" ]; then
+        rm -f "$dir/apiKeyHelper-state-"*.tmp 2>/dev/null
+        rm -f "$dir/current-mode.sh" 2>/dev/null
+        cleaned_state=true
+    fi
+done
+if $cleaned_state; then
+    echo ""
+    echo "Cleaning up stale state files..."
+    echo -e "${GREEN}Cleaned up state files${NC}"
+fi
 
 # --- 6. Summary ---
 
@@ -181,22 +187,29 @@ echo "What was removed:"
 echo "  - Installed command scripts from $INSTALL_DIR"
 echo "  - Share directory ($SHARE_DIR)"
 
-for CONFIG_DIR in "$CONFIG_DIR_NEW" "$CONFIG_DIR_LEGACY"; do
-    if [ ! -d "$CONFIG_DIR" ]; then
-        echo "  - Configuration directory ($CONFIG_DIR)"
-    fi
+for dir in "${REMOVED_CONFIG_DIRS[@]}"; do
+    echo "  - Configuration directory ($dir)"
 done
 
-echo ""
-echo "What may remain:"
-echo "  - Your ~/.claude/settings.json (check for apiKeyHelper)"
-echo "  - Any backups in ~/.claude/settings.json.backup-*"
-
-for CONFIG_DIR in "$CONFIG_DIR_NEW" "$CONFIG_DIR_LEGACY"; do
-    if [ -d "$CONFIG_DIR" ]; then
-        echo "  - Your API keys and configuration in $CONFIG_DIR"
-    fi
+# Only show "What may remain" if there's something to mention
+remaining=()
+if [ -f "$CLAUDE_SETTINGS_FILE" ] && grep -q "apiKeyHelper" "$CLAUDE_SETTINGS_FILE" 2>/dev/null; then
+    remaining+=("  - Your ~/.claude/settings.json (check for apiKeyHelper)")
+fi
+if ls "$HOME/.claude/settings.json.backup-"* 1>/dev/null 2>&1; then
+    remaining+=("  - Any backups in ~/.claude/settings.json.backup-*")
+fi
+for dir in "${PRESERVED_CONFIG_DIRS[@]}"; do
+    remaining+=("  - Your API keys and configuration in $dir")
 done
+
+if [ ${#remaining[@]} -gt 0 ]; then
+    echo ""
+    echo "What may remain:"
+    for line in "${remaining[@]}"; do
+        echo "$line"
+    done
+fi
 
 echo ""
 echo "Thank you for using AI Runner!"

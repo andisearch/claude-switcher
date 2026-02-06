@@ -126,19 +126,32 @@ load_defaults() {
 }
 
 save_defaults() {
-    local provider="$1" model_tier="$2"
+    local provider="$1" model_tier="$2" custom_model="$3"
     mkdir -p "$CONFIG_DIR"
     cat > "$DEFAULTS_FILE" << EOF
 # AI Runner defaults (set by: ai --set-default)
 AI_DEFAULT_PROVIDER="$provider"
 AI_DEFAULT_MODEL_TIER="$model_tier"
+AI_DEFAULT_CUSTOM_MODEL="$custom_model"
 EOF
-    print_success "Saved default: ${provider}${model_tier:+ --$model_tier}"
+    local desc="${provider}"
+    [[ -n "$model_tier" ]] && desc+=" --${model_tier}"
+    [[ -n "$custom_model" ]] && desc+=" --model ${custom_model}"
+    print_success "Saved default: ${desc}"
 }
 
 clear_defaults() {
     rm -f "$DEFAULTS_FILE"
     print_success "Defaults cleared. 'ai' will use your Claude subscription (same as 'claude')."
+}
+
+format_defaults() {
+    if [ ! -f "$DEFAULTS_FILE" ]; then return 1; fi
+    local desc="${AI_DEFAULT_PROVIDER}"
+    [[ -z "$desc" ]] && return 1
+    [[ -n "$AI_DEFAULT_MODEL_TIER" ]] && desc+=" --${AI_DEFAULT_MODEL_TIER}"
+    [[ -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && desc+=" --model ${AI_DEFAULT_CUSTOM_MODEL}"
+    echo "$desc"
 }
 
 # Helper to parse model arguments

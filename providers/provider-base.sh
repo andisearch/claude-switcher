@@ -107,6 +107,11 @@ _provider_disable_all() {
     unset CLAUDE_CODE_USE_VERTEX
     unset CLAUDE_CODE_USE_FOUNDRY
     unset AWS_BEARER_TOKEN_BEDROCK
+    # Clean slate for model and endpoint vars (already saved by _provider_save_env)
+    unset ANTHROPIC_BASE_URL
+    unset ANTHROPIC_AUTH_TOKEN
+    unset ANTHROPIC_MODEL
+    unset ANTHROPIC_SMALL_FAST_MODEL
 }
 
 # Default: no extra info (providers can override)

@@ -48,7 +48,6 @@ provider_setup_env() {
 
     # Disable all BYOK providers to use native authentication
     _provider_disable_all
-    export CLAUDE_CODE_USE_BEDROCK=0
 
     # Unset any API keys or custom base URLs
     unset ANTHROPIC_API_KEY

@@ -4,13 +4,16 @@
 # Shows current AI Runner configuration and environment status
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARE_DIR="/usr/local/share/ai-runner"
 
 # Set branding
 export AI_RUNNER_BRAND="AI Runner"
 
-# Source utils
+# Source utils - check dev location first, then installed share directory
 if [ -f "$SCRIPT_DIR/lib/core-utils.sh" ]; then
     source "$SCRIPT_DIR/lib/core-utils.sh"
+elif [ -f "$SHARE_DIR/lib/core-utils.sh" ]; then
+    source "$SHARE_DIR/lib/core-utils.sh"
 else
     # Minimal fallback
     BLUE='\033[0;34m'
@@ -24,16 +27,27 @@ else
     print_error() { echo -e "${RED}[AI Runner]${NC} $1"; }
 fi
 
+# Set provider/tool dirs for loaders (when installed, these aren't relative to SCRIPT_DIR)
+if [ ! -d "$SCRIPT_DIR/../providers" ] && [ -d "$SHARE_DIR/providers" ]; then
+    export PROVIDER_DIR="${SHARE_DIR}/providers"
+    export TOOL_DIR="${SHARE_DIR}/tools"
+fi
+
 # Source loaders if available
 if [ -f "$SCRIPT_DIR/lib/provider-loader.sh" ]; then
     source "$SCRIPT_DIR/lib/provider-loader.sh"
+elif [ -f "$SHARE_DIR/lib/provider-loader.sh" ]; then
+    source "$SHARE_DIR/lib/provider-loader.sh"
 fi
 if [ -f "$SCRIPT_DIR/lib/tool-loader.sh" ]; then
     source "$SCRIPT_DIR/lib/tool-loader.sh"
+elif [ -f "$SHARE_DIR/lib/tool-loader.sh" ]; then
+    source "$SHARE_DIR/lib/tool-loader.sh"
 fi
 
 # Load config quietly
 load_config_quiet 2>/dev/null || true
+load_defaults 2>/dev/null || true
 
 echo ""
 echo "┌─────────────────────────────────────────────────────────────┐"
@@ -57,6 +71,17 @@ if [ -f "$MODELS_FILE" ]; then
     echo "  Models:     $MODELS_FILE (found)"
 else
     echo "  Models:     $MODELS_FILE (not found)"
+fi
+echo ""
+
+# Saved Defaults
+echo "Saved Defaults:"
+_defaults_desc=$(format_defaults 2>/dev/null)
+if [[ -n "$_defaults_desc" ]]; then
+    echo "  ai --${_defaults_desc}"
+    echo "  Clear with: ai --clear-default"
+else
+    echo "  (none)"
 fi
 echo ""
 
@@ -88,8 +113,16 @@ else
     echo "  LM Studio:   not running"
 fi
 
-# Claude Pro
-if [ -f "$HOME/.claude/session.json" ] || [ -f "$HOME/.claude/.credentials" ]; then
+# Claude Pro - cross-platform credential detection
+# macOS: Keychain entry "Claude Code-credentials" (both npm and native installer)
+# Linux/WSL: ~/.claude/.credentials.json file
+_has_claude_credentials=false
+if command -v security &>/dev/null && security find-generic-password -s "Claude Code-credentials" &>/dev/null 2>&1; then
+    _has_claude_credentials=true
+elif [ -f "$HOME/.claude/.credentials.json" ]; then
+    _has_claude_credentials=true
+fi
+if [ "$_has_claude_credentials" = true ]; then
     echo "  Claude Pro:  logged in"
 else
     echo "  Claude Pro:  not logged in"

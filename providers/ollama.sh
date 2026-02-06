@@ -372,7 +372,6 @@ provider_setup_env() {
 
     # Disable other providers
     _provider_disable_all
-    export CLAUDE_CODE_USE_BEDROCK=0
 
     # IMPORTANT: Unset any existing Anthropic credentials first
     # This prevents Claude Code from detecting user's Anthropic API key
@@ -400,9 +399,24 @@ provider_setup_env() {
         # Check if custom model is available, offer to pull if not
         if ! provider_model_available "$custom_model"; then
             _ollama_ensure_model_available "$custom_model" || true
+            # Re-check: if still unavailable after prompt, fail so caller can fall back
+            if ! provider_model_available "$ANTHROPIC_MODEL"; then
+                print_error "Model '${ANTHROPIC_MODEL}' is not available in Ollama."
+                echo "  Pull it with: ollama pull ${ANTHROPIC_MODEL}" >&2
+                _provider_restore_env
+                return 1
+            fi
         fi
     else
         export ANTHROPIC_MODEL=$(provider_get_model_id "$tier")
+    fi
+
+    # No model available — show guidance and fail so caller can fall back
+    if [ -z "$ANTHROPIC_MODEL" ]; then
+        print_warning "No Ollama models installed."
+        _ollama_print_system_recommendations >&2
+        _provider_restore_env
+        return 1
     fi
 
     # Set small/fast model (for background operations)
@@ -483,16 +497,8 @@ _ollama_auto_detect_model() {
     models=$(provider_list_models 2>/dev/null)
 
     if [ -z "$models" ]; then
-        # No models installed - show system-appropriate recommendations
-        print_warning "No Ollama models installed."
-        _ollama_print_system_recommendations
+        # No models installed — return empty so caller can handle (fallback/messaging)
         echo ""
-        # Return appropriate default - cloud for underpowered systems
-        if [ "$prefer_cloud" = true ]; then
-            echo "glm-4.7:cloud"
-        else
-            echo "qwen3-coder"
-        fi
         return
     fi
 

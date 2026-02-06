@@ -91,7 +91,6 @@ provider_setup_env() {
 
     # Disable other providers
     _provider_disable_all
-    export CLAUDE_CODE_USE_BEDROCK=0
 
     # IMPORTANT: Unset any existing Anthropic credentials first
     # This prevents Claude Code from detecting user's Anthropic API key
@@ -111,9 +110,29 @@ provider_setup_env() {
         # Check if custom model is available, offer to download if not
         if ! provider_model_available "$custom_model"; then
             _lmstudio_ensure_model_available "$custom_model" || true
+            # Re-check: if still unavailable after prompt, fail so caller can fall back
+            if ! provider_model_available "$ANTHROPIC_MODEL"; then
+                print_error "Model '${ANTHROPIC_MODEL}' is not available in LM Studio."
+                _provider_restore_env
+                return 1
+            fi
         fi
     else
         export ANTHROPIC_MODEL=$(provider_get_model_id "$tier")
+    fi
+
+    # No model available — show guidance and fail so caller can fall back
+    if [ -z "$ANTHROPIC_MODEL" ]; then
+        print_warning "No models loaded in LM Studio."
+        echo "" >&2
+        echo "  To use LM Studio, load a model first:" >&2
+        echo "    1. Open the LM Studio app and load a model" >&2
+        echo "    2. Or use the CLI: lms load <model-name>" >&2
+        echo "" >&2
+        echo "  Tip: Use 25K+ context for best results with Claude Code" >&2
+        echo "  See: https://lmstudio.ai/blog/claudecode" >&2
+        _provider_restore_env
+        return 1
     fi
 
     # Set small/fast model (for background operations)
@@ -170,19 +189,11 @@ provider_get_small_model() {
 }
 
 # Get first available model from LM Studio
+# Returns empty string if no models are loaded (caller handles messaging)
 _lmstudio_get_first_model() {
     local models
     models=$(provider_list_models 2>/dev/null)
-
-    if [ -z "$models" ]; then
-        print_warning "No models loaded in LM Studio."
-        print_warning "Load a model in LM Studio before using ai --lmstudio"
-        echo ""
-        return
-    fi
-
-    # Return first model
-    echo "$models" | head -1
+    [ -n "$models" ] && echo "$models" | head -1
 }
 
 provider_supports_tool() {
@@ -211,7 +222,7 @@ provider_print_extra_info() {
 provider_list_models() {
     local lmstudio_url="${LMSTUDIO_HOST:-http://localhost:1234}"
     curl -s "${lmstudio_url}/v1/models" 2>/dev/null | \
-        grep -o '"id":"[^"]*"' | \
+        grep -o '"id" *: *"[^"]*"' | \
         cut -d'"' -f4
 }
 
@@ -329,9 +340,9 @@ _lmstudio_get_model_state() {
     response=$(curl -s "${lmstudio_url}/api/v1/models" 2>/dev/null)
 
     # Check if model is in the response
-    if echo "$response" | grep -q "\"id\":\"$model\""; then
+    if echo "$response" | grep -q "\"id\" *: *\"$model\""; then
         # Check state field if available
-        if echo "$response" | grep -A5 "\"id\":\"$model\"" | grep -q '"state":"loaded"'; then
+        if echo "$response" | grep -A5 "\"id\" *: *\"$model\"" | grep -q '"state" *: *"loaded"'; then
             echo "loaded"
         else
             echo "downloaded"

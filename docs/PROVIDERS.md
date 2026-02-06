@@ -14,7 +14,7 @@ nano ~/.ai-runner/secrets.sh
 
 AI Runner loads this file at startup. You don't need to set environment variables in your shell profile or `.bashrc` — just add them to secrets.sh, and then switch providers freely with `ai --aws`, `ai --vertex`, etc.
 
-> **Tip:** You only need to configure the providers you want to use. Configure multiple providers to switch between them when you hit rate limits.
+> **Tip:** You only need to configure the providers you want to use. Configure multiple providers to switch between them when you hit rate limits, or want to use different models.
 
 ## Quick Reference
 
@@ -26,7 +26,7 @@ AI Runner loads this file at startup. You don't need to set environment variable
 | `--vertex` | Google Vertex AI | Cloud | Requires GCP project |
 | `--apikey` | Anthropic API | Cloud | Direct API access |
 | `--azure` | Microsoft Azure | Cloud | Azure Foundry |
-| `--vercel` | Vercel AI Gateway | Cloud | Unified billing |
+| `--vercel` | Vercel AI Gateway | Cloud | Any model: Anthropic,OpenAI, xAI, Google, Meta, more |
 | `--pro` | Claude Pro | Subscription | Default if logged in |
 
 ---
@@ -298,6 +298,49 @@ export VERCEL_AI_GATEWAY_URL="https://ai-gateway.vercel.sh"  # Optional
 ```bash
 ai --vercel
 ai --vercel --opus task.md
+```
+
+#### Use Any Model
+
+Vercel AI Gateway supports 100+ models from OpenAI, xAI, Google, Meta, Anthropic, Mistral, DeepSeek, and more — all through one API. Use `--model provider/model` to run Claude Code with any supported model:
+
+```bash
+ai --vercel --model xai/grok-code-fast-1         # xAI coding model
+ai --vercel --model openai/gpt-5.2-codex         # OpenAI coding model
+ai --vercel --model google/gemini-3-pro-preview   # Google reasoning model
+ai --vercel --model alibaba/qwen3-coder           # Alibaba coding model
+ai --vercel --model zai/glm-4.7                   # Zhipu AI 128K context
+```
+
+**Example coding models:**
+
+| Model ID | Provider | Description |
+|----------|----------|-------------|
+| `xai/grok-code-fast-1` | xAI | Fast coding model |
+| `openai/gpt-5.2-codex` | OpenAI | Coding-optimized GPT (also `openai/gpt-5.3-codex`) |
+| `google/gemini-3-pro-preview` | Google | Latest reasoning model |
+| `alibaba/qwen3-coder` | Alibaba | Open-source coding model |
+| `zai/glm-4.7` | Zhipu AI | 128K context model |
+
+Browse all available models: [vercel.com/ai-gateway/models](https://vercel.com/ai-gateway/models)
+
+#### Configuration
+
+**Override defaults** in `~/.ai-runner/secrets.sh`:
+```bash
+# Use a non-Anthropic model as default for Vercel
+export CLAUDE_MODEL_SONNET_VERCEL="xai/grok-code-fast-1"
+
+# Set a specific background/small-fast model
+export CLAUDE_SMALL_FAST_MODEL_VERCEL="xai/grok-code-fast-1"
+```
+
+**Automatic small/fast model:** When you use `--model` with a non-Anthropic model (e.g., `xai/grok-code-fast-1`), the background model is automatically set to the same model. This avoids mixing providers (e.g., xAI for main work + Anthropic for background). For Anthropic models on Vercel, the background model defaults to Haiku as usual.
+
+**Set as default provider:**
+```bash
+ai --vercel --model xai/grok-code-fast-1 --set-default
+ai --clear-default
 ```
 
 ---

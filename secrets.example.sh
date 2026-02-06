@@ -109,10 +109,13 @@
 # export CLAUDE_MODEL_OPUS_AZURE="claude-opus-4-6"
 # export CLAUDE_MODEL_HAIKU_AZURE="claude-haiku-4-5"
 
-# Vercel AI Gateway Models
+# Vercel AI Gateway Models (supports any model via Vercel AI Gateway)
 # export CLAUDE_MODEL_SONNET_VERCEL="anthropic/claude-sonnet-4.5"
 # export CLAUDE_MODEL_OPUS_VERCEL="anthropic/claude-opus-4.6"
 # export CLAUDE_MODEL_HAIKU_VERCEL="anthropic/claude-haiku-4.5"
+# Non-Anthropic models (see https://vercel.com/ai-gateway/models):
+# export CLAUDE_MODEL_SONNET_VERCEL="xai/grok-code-fast-1"
+# export CLAUDE_MODEL_SONNET_VERCEL="openai/gpt-5.2-codex"
 
 # ============================================================================
 # Small/Fast Model Overrides (Optional)
@@ -135,6 +138,8 @@
 
 # Vercel AI Gateway Small/Fast Model
 # export CLAUDE_SMALL_FAST_MODEL_VERCEL="anthropic/claude-haiku-4.5"
+# For non-Anthropic models, set to match your main model to avoid provider mixing:
+# export CLAUDE_SMALL_FAST_MODEL_VERCEL="xai/grok-code-fast-1"
 
 # ============================================================================
 # Ollama Configuration (Local, Free)

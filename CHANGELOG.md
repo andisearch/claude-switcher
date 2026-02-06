@@ -5,6 +5,23 @@ All notable changes to AI Runner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] - 2026-02-05
+
+### Added
+- **Vercel AI Gateway multi-model support**: Document and fix support for 100+ non-Anthropic models (OpenAI, xAI, Google, Meta, Mistral, DeepSeek, etc.) via `--vercel --model provider/model`
+
+### Fixed
+- **Vercel small/fast model for non-Anthropic models**: When using `--vercel --model xai/grok-code-fast-1` (or any non-Anthropic model), `ANTHROPIC_SMALL_FAST_MODEL` is now set to the same model to avoid provider mixing (e.g., xAI main + Anthropic background)
+
+## [2.2.1] - 2026-02-05
+
+### Fixed
+- **`ai-sessions` no output**: Installed version sourced legacy `claude-switcher-utils.sh` which set wrong sessions directory; now uses `SHARE_DIR` fallback to load correct `core-utils.sh`
+- **`ai-status` library loading**: Added `SHARE_DIR` fallback so `ai-status` finds libs when installed to `/usr/local/bin`
+- **`ai-status` Claude Pro detection**: Replaced broken file checks (`session.json`/`.credentials`) with cross-platform detection — macOS Keychain (`security find-generic-password`) and Linux/WSL (`~/.claude/.credentials.json`)
+- **`[Claude Switcher]` branding**: Fixed stale branding appearing in `ai-sessions` when run from installed location
+- **Session isolation hardening**: `_provider_disable_all()` now unsets `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL` for a clean slate when switching providers
+
 ## [2.2.0] - 2026-02-05
 
 ### Added

@@ -55,7 +55,6 @@ provider_setup_env() {
 
     # Disable other providers
     _provider_disable_all
-    export CLAUDE_CODE_USE_BEDROCK=0
 
     # Set model
     if [ -n "$custom_model" ]; then
