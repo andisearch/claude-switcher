@@ -43,3 +43,7 @@ If GitHub Pages doesn't work (e.g., org-level Pages conflicts):
 ## Editing
 
 Single HTML file, no build. Edit `index.html` directly and push to `main`.
+
+## Analytics
+
+GitHub Pages analytics (website only): PostHog analytics script included in HTML for airun.me web traffic only. No tracking or analytics is used in airun itself.
