@@ -69,6 +69,15 @@ _defaults_desc=$(format_defaults 2>/dev/null)
 if [[ -n "$_defaults_desc" ]]; then
     print_status "Saved defaults: ${_defaults_desc}  (clear with: ai --clear-default)"
 fi
+
+# Check for updates
+_lib_dir="$SCRIPT_DIR/lib"; [ ! -f "$_lib_dir/update-checker.sh" ] && _lib_dir="$SHARE_DIR/lib"
+if [ -f "$_lib_dir/update-checker.sh" ]; then
+    source "$_lib_dir/update-checker.sh"
+    if check_for_update; then
+        print_update_notice
+    fi
+fi
 echo ""
 
 # Check if sessions directory exists and has any files

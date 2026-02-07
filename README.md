@@ -21,7 +21,7 @@ Extends [Claude Code](https://claude.ai/code) with on-the-fly cross-cloud provid
 
 From [Andi AI Search](https://andisearch.com). [Star this repo](https://github.com/andisearch/airun) if it helps!
 
-**Latest:** Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
+**Latest:** `ai update` self-update command, version update notifications, Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick Start
 
@@ -85,6 +85,7 @@ This works for simple prompts but lacks provider switching, model selection, std
 | Command | Description |
 |---------|-------------|
 | `ai` / `airun` | Universal entry point - run scripts, switch providers |
+| `ai update` | Update AI Runner to the latest version |
 | `ai-sessions` | View active AI coding sessions |
 | `ai-status` | Show current configuration and provider status |
 
@@ -348,8 +349,12 @@ The setup script installs commands to `/usr/local/bin`, creates `~/.ai-runner/` 
 ### Updating
 
 ```bash
-cd airun && git pull && ./setup.sh
+ai update
 ```
+
+Or manually: `cd airun && git pull && ./setup.sh`
+
+AI Runner checks for updates once every 24 hours (non-blocking, cache-only) and shows a notice in interactive mode and `ai-status` when a new version is available. Disable with `export AI_NO_UPDATE_CHECK=1`.
 
 Your API keys in `~/.ai-runner/secrets.sh` are preserved.
 

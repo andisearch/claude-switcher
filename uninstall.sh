@@ -103,6 +103,7 @@ for CONFIG_DIR in "$CONFIG_DIR_NEW" "$CONFIG_DIR_LEGACY"; do
         echo "  - models.sh (model configuration)"
         echo "  - defaults.sh (persistent provider/model defaults)"
         echo "  - banner.sh (banner configuration)"
+        echo "  - .update-check (update checker cache)"
         echo "  - sessions/ (session tracking)"
         echo ""
 

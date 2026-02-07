@@ -202,5 +202,8 @@
 # Skip config migration prompt
 # export AI_RUNNER_SKIP_MIGRATION=1
 
+# Disable update checking
+# export AI_NO_UPDATE_CHECK=1
+
 # Custom config directory
 # export AI_RUNNER_CONFIG_DIR="$HOME/.ai-runner"

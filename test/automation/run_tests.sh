@@ -360,6 +360,163 @@ test_version_flag() {
 }
 
 #=============================================================================
+# TEST 17: Update checker module exists
+#=============================================================================
+test_update_checker_module() {
+    test_header "Update checker module exists"
+
+    if [[ -f "$PROJECT_DIR/scripts/lib/update-checker.sh" ]]; then
+        pass "update-checker.sh exists"
+    else
+        fail "update-checker.sh not found"
+        return
+    fi
+
+    for func in check_for_update print_update_notice run_update; do
+        if grep -q "$func" "$PROJECT_DIR/scripts/lib/update-checker.sh"; then
+            pass "Function $func found"
+        else
+            fail "Function $func not found"
+        fi
+    done
+}
+
+#=============================================================================
+# TEST 18: Update subcommand parsing
+#=============================================================================
+test_update_subcommand() {
+    test_header "Update subcommand parsing"
+
+    if grep -q 'update)' "$PROJECT_DIR/scripts/ai"; then
+        pass "update) case found in scripts/ai"
+    else
+        fail "update) case not found in scripts/ai"
+    fi
+
+    if grep -q 'update)' "$PROJECT_DIR/setup.sh"; then
+        pass "update) case found in setup.sh heredoc"
+    else
+        fail "update) case not found in setup.sh heredoc"
+    fi
+}
+
+#=============================================================================
+# TEST 19: Update checker version comparison
+#=============================================================================
+test_version_comparison() {
+    test_header "Update checker version comparison"
+
+    # Source the update checker to test _version_lt
+    source "$PROJECT_DIR/scripts/lib/update-checker.sh"
+
+    if _version_lt "2.2.2" "2.3.0"; then
+        pass "_version_lt 2.2.2 < 2.3.0"
+    else
+        fail "_version_lt 2.2.2 < 2.3.0 should return 0"
+    fi
+
+    if ! _version_lt "2.3.0" "2.2.2"; then
+        pass "_version_lt 2.3.0 not < 2.2.2"
+    else
+        fail "_version_lt 2.3.0 < 2.2.2 should return 1"
+    fi
+
+    if ! _version_lt "2.2.2" "2.2.2"; then
+        pass "_version_lt 2.2.2 == 2.2.2 returns 1"
+    else
+        fail "_version_lt same version should return 1"
+    fi
+
+    # Test with v prefix
+    if _version_lt "v2.0.0" "v2.1.0"; then
+        pass "_version_lt v2.0.0 < v2.1.0 (with v prefix)"
+    else
+        fail "_version_lt with v prefix failed"
+    fi
+
+    # Test cache write/read cycle
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    _UPDATE_CACHE_FILE="$tmp_dir/.update-check"
+    _write_update_cache "v2.5.0" "Test release notes"
+    if _read_update_cache && [[ "$_CACHED_VERSION" == "v2.5.0" ]]; then
+        pass "Cache write/read cycle works"
+    else
+        fail "Cache write/read cycle failed"
+    fi
+    rm -rf "$tmp_dir"
+}
+
+#=============================================================================
+# TEST 20: AI_NO_UPDATE_CHECK disables check
+#=============================================================================
+test_no_update_check() {
+    test_header "AI_NO_UPDATE_CHECK disables check"
+
+    source "$PROJECT_DIR/scripts/lib/update-checker.sh"
+
+    AI_NO_UPDATE_CHECK=1
+    AI_RUNNER_VERSION="2.2.2"
+    if ! check_for_update; then
+        pass "check_for_update returns 1 when AI_NO_UPDATE_CHECK=1"
+    else
+        fail "check_for_update should return 1 when disabled"
+    fi
+    unset AI_NO_UPDATE_CHECK
+}
+
+#=============================================================================
+# TEST 21: Source metadata format
+#=============================================================================
+test_source_metadata() {
+    test_header "Source metadata format"
+
+    if grep -q 'source-metadata' "$PROJECT_DIR/setup.sh"; then
+        pass "setup.sh writes .source-metadata"
+    else
+        fail "setup.sh does not write .source-metadata"
+    fi
+
+    if grep -q 'AI_RUNNER_SOURCE_DIR' "$PROJECT_DIR/setup.sh"; then
+        pass "setup.sh includes AI_RUNNER_SOURCE_DIR"
+    else
+        fail "setup.sh missing AI_RUNNER_SOURCE_DIR"
+    fi
+
+    if grep -q 'AI_RUNNER_GITHUB_REPO' "$PROJECT_DIR/setup.sh"; then
+        pass "setup.sh includes AI_RUNNER_GITHUB_REPO"
+    else
+        fail "setup.sh missing AI_RUNNER_GITHUB_REPO"
+    fi
+}
+
+#=============================================================================
+# TEST 22: setup.sh/scripts/ai heredoc sync
+#=============================================================================
+test_heredoc_sync() {
+    test_header "setup.sh/scripts/ai heredoc sync for update"
+
+    # Both files should have update) case
+    local ai_has_update setup_has_update
+    ai_has_update=$(grep -c 'update)' "$PROJECT_DIR/scripts/ai" || true)
+    setup_has_update=$(grep -c 'update)' "$PROJECT_DIR/setup.sh" || true)
+
+    if [[ "$ai_has_update" -ge 1 && "$setup_has_update" -ge 1 ]]; then
+        pass "Both scripts/ai and setup.sh heredoc have update) case"
+    else
+        fail "Sync drift: scripts/ai has $ai_has_update, setup.sh has $setup_has_update update) cases"
+    fi
+
+    # Both should source update-checker.sh in interactive mode
+    if grep -q 'update-checker.sh' "$PROJECT_DIR/scripts/ai" && \
+       grep -q 'update-checker.sh' "$PROJECT_DIR/setup.sh"; then
+        pass "Both source update-checker.sh"
+    else
+        fail "update-checker.sh sourcing not synced"
+    fi
+}
+
+#=============================================================================
 # MAIN
 #=============================================================================
 main() {
@@ -384,6 +541,12 @@ main() {
     test_utility_commands
     test_default_flags
     test_version_flag
+    test_update_checker_module
+    test_update_subcommand
+    test_version_comparison
+    test_no_update_check
+    test_source_metadata
+    test_heredoc_sync
 
     echo ""
     echo "=========================================="

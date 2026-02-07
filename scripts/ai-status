@@ -57,6 +57,16 @@ echo ""
 
 # Version
 echo "Version: ${AI_RUNNER_VERSION:-unknown}"
+
+# Check for updates
+_lib_dir="$SCRIPT_DIR/lib"; [ ! -f "$_lib_dir/update-checker.sh" ] && _lib_dir="$SHARE_DIR/lib"
+if [ -f "$_lib_dir/update-checker.sh" ]; then
+    source "$_lib_dir/update-checker.sh"
+    if check_for_update; then
+        echo -e "  ${YELLOW}Update available: v${AI_RUNNER_VERSION:-unknown} -> v${_UPDATE_AVAILABLE_VERSION}${NC}"
+        echo -e "  ${CYAN}Run 'ai update' to update${NC}"
+    fi
+fi
 echo ""
 
 # Config Directory

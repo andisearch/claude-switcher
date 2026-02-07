@@ -142,6 +142,12 @@ while [[ $# -gt 0 ]]; do
             SHOW_HELP=true
             shift ;;
 
+        # Subcommands
+        update)
+            source "$LIB_DIR/update-checker.sh"
+            run_update
+            exit $? ;;
+
         # Default preference flags
         --set-default) SET_DEFAULT=true; shift ;;
         --clear-default) CLEAR_DEFAULT=true; shift ;;
@@ -200,6 +206,9 @@ MODEL FLAGS:
   --sonnet, --mid  Use mid tier model (default)
   --haiku, --low   Use lowest tier model
   --model <id>     Use specific model ID
+
+SUBCOMMANDS:
+  update              Update AI Runner to the latest version
 
 OTHER FLAGS:
   --output-format <fmt>   Output format: text, json, stream-json
@@ -516,6 +525,10 @@ fi
 
 # Show banner
 display_banner
+
+# Check for updates (non-blocking, cache-only)
+source "$LIB_DIR/update-checker.sh"
+if check_for_update; then print_update_notice; fi
 
 _activation_msg="$(tool_name) + $(provider_name) mode activated"
 [[ "$USING_DEFAULTS" == true ]] && _activation_msg+=" (default)"

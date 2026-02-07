@@ -5,6 +5,19 @@ All notable changes to AI Runner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-07
+
+### Added
+- **`ai update` subcommand**: One-command self-update — pulls latest code and re-runs `setup.sh`
+  - Tracks source directory via `/usr/local/share/ai-runner/.source-metadata` (written by `setup.sh`)
+  - Warns on local modifications before pulling
+  - Clears update cache after successful update
+- **Update notifications**: Non-blocking cached check against GitHub Releases API
+  - Shows "Update available: v2.2.2 -> v2.3.0" in interactive mode banner and `ai-status`/`ai-sessions`
+  - Cache refreshes in background every 24 hours — never blocks launch
+  - Disable with `export AI_NO_UPDATE_CHECK=1`
+- **Tests 17-22**: Update checker module, subcommand parsing, version comparison, cache cycle, `AI_NO_UPDATE_CHECK`, source metadata format, heredoc sync
+
 ## [2.2.2] - 2026-02-05
 
 ### Added
@@ -297,7 +310,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Automatic version update notifications in setup.sh
 - Integration tests for all provider modes
 - Support for additional Claude providers as they become available
 

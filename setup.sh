@@ -289,6 +289,19 @@ if [ -f "$PROJECT_ROOT/VERSION" ]; then
     $SUDO cp "$PROJECT_ROOT/VERSION" "$SHARE_DIR/"
 fi
 
+# Write source metadata (for ai update)
+_github_repo="andisearch/airun"
+if command -v git &>/dev/null && [ -d "$PROJECT_ROOT/.git" ]; then
+    _remote_url=$(cd "$PROJECT_ROOT" && git remote get-url origin 2>/dev/null || true)
+    if [[ "$_remote_url" =~ github\.com[:/]([^/]+/[^/.]+) ]]; then
+        _github_repo="${BASH_REMATCH[1]}"
+    fi
+fi
+$SUDO tee "$SHARE_DIR/.source-metadata" > /dev/null << METADATA
+AI_RUNNER_SOURCE_DIR="$PROJECT_ROOT"
+AI_RUNNER_GITHUB_REPO="$_github_repo"
+METADATA
+
 # Update ai script to use installed lib location
 # Create a wrapper that sets correct paths
 $SUDO tee "$INSTALL_DIR/ai" > /dev/null << 'AISCRIPT'
@@ -367,6 +380,10 @@ while [[ $# -gt 0 ]]; do
             [[ "$STDIN_POSITION" != "prepend" && "$STDIN_POSITION" != "append" ]] && \
                 { print_error "Invalid --stdin-position: $2"; exit 1; }
             shift 2 ;;
+        update)
+            source "$AI_RUNNER_SHARE_DIR/lib/update-checker.sh"
+            run_update
+            exit $? ;;
         --set-default) SET_DEFAULT=true; shift ;;
         --clear-default) CLEAR_DEFAULT=true; shift ;;
         --version|-v) SHOW_VERSION=true; shift ;;
@@ -382,6 +399,9 @@ done
 Usage: ai [OPTIONS] [file.md]
 
 Universal AI prompt interpreter - execute prompts across tools and providers.
+
+SUBCOMMANDS:
+  update              Update AI Runner to the latest version
 
 TOOL FLAGS:
   --tool <name>   Select AI tool (default: auto-detect)
@@ -525,6 +545,11 @@ if [[ -n "$STDIN_CONTENT" ]]; then
 fi
 
 display_banner
+
+# Check for updates (non-blocking, cache-only)
+source "$AI_RUNNER_SHARE_DIR/lib/update-checker.sh"
+if check_for_update; then print_update_notice; fi
+
 _activation_msg="$(tool_name) + $(provider_name) mode activated"
 [[ "$USING_DEFAULTS" == true ]] && _activation_msg+=" (default)"
 print_success "$_activation_msg"
