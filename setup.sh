@@ -350,6 +350,8 @@ SHOW_VERSION=false
 SHOW_HELP=false
 SET_DEFAULT=false
 CLEAR_DEFAULT=false
+TEAM_MODE=""
+TEAMMATE_MODE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -372,6 +374,9 @@ while [[ $# -gt 0 ]]; do
         --pro) PROVIDER_FLAG="pro"; shift ;;
         --ollama|--ol) PROVIDER_FLAG="ollama"; shift ;;
         --lmstudio|--lm) PROVIDER_FLAG="lmstudio"; shift ;;
+        --team|--teams) TEAM_MODE="enabled"; shift ;;
+        --teammate-mode) TEAMMATE_MODE="$2"; CLAUDE_ARGS+=("$1" "$2"); shift 2 ;;
+        --teammate-mode=*) TEAMMATE_MODE="${1#*=}"; CLAUDE_ARGS+=("$1"); shift ;;
         --opus|--high) MODEL_TIER="high"; shift ;;
         --sonnet|--mid) MODEL_TIER="mid"; shift ;;
         --haiku|--low) MODEL_TIER="low"; shift ;;
@@ -442,9 +447,15 @@ fi
 CLI_PROVIDER_FLAG="$PROVIDER_FLAG"
 CLI_MODEL_TIER="$MODEL_TIER"
 CLI_CUSTOM_MODEL="$CUSTOM_MODEL"
+CLI_TEAM_MODE="$TEAM_MODE"
 [[ -z "$PROVIDER_FLAG" && -n "$AI_DEFAULT_PROVIDER" ]] && PROVIDER_FLAG="$AI_DEFAULT_PROVIDER"
 [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$AI_DEFAULT_MODEL_TIER" ]] && MODEL_TIER="$AI_DEFAULT_MODEL_TIER"
 [[ -z "$CLI_PROVIDER_FLAG" && -z "$CUSTOM_MODEL" && -z "$MODEL_TIER" && -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && CUSTOM_MODEL="$AI_DEFAULT_CUSTOM_MODEL"
+[[ -z "$TEAM_MODE" && -n "$AI_DEFAULT_TEAM_MODE" ]] && TEAM_MODE="$AI_DEFAULT_TEAM_MODE"
+if [[ -z "$TEAMMATE_MODE" && -n "$AI_DEFAULT_TEAMMATE_MODE" ]]; then
+    TEAMMATE_MODE="$AI_DEFAULT_TEAMMATE_MODE"
+    CLAUDE_ARGS+=("--teammate-mode" "$TEAMMATE_MODE")
+fi
 
 # Track whether we're running entirely from saved defaults (no CLI overrides)
 USING_DEFAULTS=false
@@ -506,21 +517,29 @@ fi
 
 # Save as default if requested
 if [[ "$SET_DEFAULT" == true ]]; then
-    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER" "$CUSTOM_MODEL"
+    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER" "$CUSTOM_MODEL" "$TEAM_MODE" "$TEAMMATE_MODE"
 fi
 
 tool_setup_env
+[[ -n "$TEAM_MODE" ]] && export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 AI_SESSION_ID="$(tool_flag)-$(provider_flag)-$$-$(date +%s)"
 export AI_SESSION_ID
 
 write_session_info "$(provider_name)" "BYOK" "${ANTHROPIC_MODEL:-(system default)}" "$ANTHROPIC_SMALL_FAST_MODEL" \
     "$(provider_get_region 2>/dev/null || echo '')" "$(provider_get_project 2>/dev/null || echo '')" \
-    "$(provider_get_auth_method)" "$(tool_flag)"
+    "$(provider_get_auth_method)" "$(tool_flag)" "$TEAM_MODE"
 
 trap 'cleanup_session_info; provider_cleanup_env' EXIT
 
 [[ "$NEEDS_VERBOSE" == true ]] && CLAUDE_ARGS=("--verbose" "${CLAUDE_ARGS[@]}")
+
+# Skip --team in non-interactive mode (shebang/piped)
+if [[ -n "$TEAM_MODE" ]] && [[ -n "$MD_FILE" || -n "$STDIN_CONTENT" ]]; then
+    [[ -n "$CLI_TEAM_MODE" ]] && print_warning "Agent teams (--team) requires interactive mode. Ignoring flag."
+    TEAM_MODE=""
+    unset CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
+fi
 
 if [[ -n "$MD_FILE" ]]; then
     [[ "$(head -1 "$MD_FILE")" == "#!"* ]] && CONTENT=$(tail -n +2 "$MD_FILE") || CONTENT=$(cat "$MD_FILE")
@@ -563,6 +582,7 @@ print_status "- Provider: $(provider_name)"
 print_status "- Auth: $(provider_get_auth_method)"
 print_status "- Model: ${ANTHROPIC_MODEL:-(system default)}"
 [[ -n "$ANTHROPIC_SMALL_FAST_MODEL" ]] && print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
+[[ -n "$TEAM_MODE" ]] && print_status "- Agent Teams: enabled"
 
 # Show auth conflict note for API key mode
 if [[ "$PROVIDER_FLAG" == "apikey" ]] && [[ -n "$ANTHROPIC_API_KEY" ]]; then

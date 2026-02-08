@@ -55,6 +55,8 @@ SHOW_VERSION=false
 SHOW_HELP=false
 SET_DEFAULT=false
 CLEAR_DEFAULT=false
+TEAM_MODE=""
+TEAMMATE_MODE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -94,6 +96,17 @@ while [[ $# -gt 0 ]]; do
         # Provider selection (local)
         --ollama|--ol)     PROVIDER_FLAG="ollama"; shift ;;
         --lmstudio|--lm) PROVIDER_FLAG="lmstudio"; shift ;;
+
+        # Agent Teams
+        --team|--teams) TEAM_MODE="enabled"; shift ;;
+        --teammate-mode)
+            TEAMMATE_MODE="$2"
+            CLAUDE_ARGS+=("$1" "$2")
+            shift 2 ;;
+        --teammate-mode=*)
+            TEAMMATE_MODE="${1#*=}"
+            CLAUDE_ARGS+=("$1")
+            shift ;;
 
         # Model flags (Anthropic tier names)
         --opus)   MODEL_TIER="high"; shift ;;
@@ -210,6 +223,11 @@ MODEL FLAGS:
 SUBCOMMANDS:
   update              Update AI Runner to the latest version
 
+AGENT TEAMS (experimental):
+  --team              Enable agent teams (interactive mode only)
+                      Sets CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+                      Use --teammate-mode <mode> to control display (in-process, tmux)
+
 OTHER FLAGS:
   --output-format <fmt>   Output format: text, json, stream-json
   --stdin-position <pos>  Where to place piped input: 'prepend' (default) or 'append'
@@ -224,6 +242,8 @@ EXAMPLES:
   ai --ollama task.md           # Execute with local Ollama (free)
   ai --aws --opus task.md       # Execute with AWS Bedrock + Opus
   curl URL | ai --ollama        # Pipe remote script to local Ollama
+  ai --team                     # Enable agent teams
+  ai --aws --opus --team        # Agent teams with AWS Bedrock + Opus
 
 BACKWARD COMPATIBILITY:
   All claude-* commands (claude-run, claude-aws, etc.) still work.
@@ -256,9 +276,15 @@ fi
 CLI_PROVIDER_FLAG="$PROVIDER_FLAG"
 CLI_MODEL_TIER="$MODEL_TIER"
 CLI_CUSTOM_MODEL="$CUSTOM_MODEL"
+CLI_TEAM_MODE="$TEAM_MODE"
 [[ -z "$PROVIDER_FLAG" && -n "$AI_DEFAULT_PROVIDER" ]] && PROVIDER_FLAG="$AI_DEFAULT_PROVIDER"
 [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$AI_DEFAULT_MODEL_TIER" ]] && MODEL_TIER="$AI_DEFAULT_MODEL_TIER"
 [[ -z "$CLI_PROVIDER_FLAG" && -z "$CUSTOM_MODEL" && -z "$MODEL_TIER" && -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && CUSTOM_MODEL="$AI_DEFAULT_CUSTOM_MODEL"
+[[ -z "$TEAM_MODE" && -n "$AI_DEFAULT_TEAM_MODE" ]] && TEAM_MODE="$AI_DEFAULT_TEAM_MODE"
+if [[ -z "$TEAMMATE_MODE" && -n "$AI_DEFAULT_TEAMMATE_MODE" ]]; then
+    TEAMMATE_MODE="$AI_DEFAULT_TEAMMATE_MODE"
+    CLAUDE_ARGS+=("--teammate-mode" "$TEAMMATE_MODE")
+fi
 
 # Track whether we're running entirely from saved defaults (no CLI overrides)
 USING_DEFAULTS=false
@@ -386,11 +412,16 @@ fi
 
 # Save as default if requested
 if [[ "$SET_DEFAULT" == true ]]; then
-    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER" "$CUSTOM_MODEL"
+    save_defaults "$PROVIDER_FLAG" "$MODEL_TIER" "$CUSTOM_MODEL" "$TEAM_MODE" "$TEAMMATE_MODE"
 fi
 
 # Setup tool environment
 tool_setup_env
+
+# Setup agent teams if requested
+if [[ -n "$TEAM_MODE" ]]; then
+    export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+fi
 
 # Generate session ID
 AI_SESSION_ID="$(tool_flag)-$(provider_flag)-$$-$(date +%s)"
@@ -405,7 +436,8 @@ write_session_info \
     "$(provider_get_region 2>/dev/null || echo '')" \
     "$(provider_get_project 2>/dev/null || echo '')" \
     "$(provider_get_auth_method)" \
-    "$(tool_flag)"
+    "$(tool_flag)" \
+    "$TEAM_MODE"
 
 # Cleanup on exit
 cleanup_on_exit() {
@@ -417,6 +449,14 @@ trap cleanup_on_exit EXIT
 # Add --verbose if stream-json output format requires it
 if [[ "$NEEDS_VERBOSE" == true ]]; then
     CLAUDE_ARGS=("--verbose" "${CLAUDE_ARGS[@]}")
+fi
+
+# Skip --team in non-interactive mode (shebang/piped)
+if [[ -n "$TEAM_MODE" ]] && [[ -n "$MD_FILE" || -n "$STDIN_CONTENT" ]]; then
+    # Only warn if --team was explicitly passed on CLI (not from saved defaults)
+    [[ -n "$CLI_TEAM_MODE" ]] && print_warning "Agent teams (--team) requires interactive mode. Ignoring flag."
+    TEAM_MODE=""
+    unset CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
 fi
 
 #=============================================================================
@@ -538,6 +578,9 @@ print_status "- Auth: $(provider_get_auth_method)"
 print_status "- Model: ${ANTHROPIC_MODEL:-(system default)}"
 if [[ -n "$ANTHROPIC_SMALL_FAST_MODEL" ]]; then
     print_status "- Small/Fast Model: $ANTHROPIC_SMALL_FAST_MODEL"
+fi
+if [[ -n "$TEAM_MODE" ]]; then
+    print_status "- Agent Teams: enabled"
 fi
 # Provider-specific extra info (e.g., system capabilities for Ollama)
 provider_print_extra_info

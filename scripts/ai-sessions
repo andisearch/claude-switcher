@@ -129,6 +129,7 @@ for session_file in "$SESSIONS_DIR"/*; do
     local_region="${AI_SESSION_REGION:-${CLAUDE_SESSION_REGION:-}}"
     local_start="${AI_SESSION_START_TIME:-${CLAUDE_SESSION_START_TIME:-0}}"
     local_pid="${AI_SESSION_PID:-${CLAUDE_SESSION_PID:-$(basename "$session_file")}}"
+    local_teams="${AI_SESSION_TEAMS:-}"
 
     # Apply filters
     if [ -n "$FILTER_TOOL" ] && [ "$local_tool" != "$FILTER_TOOL" ] && [ "$local_tool" != "claude-code" ]; then
@@ -164,13 +165,17 @@ for session_file in "$SESSIONS_DIR"/*; do
         region_display="${region_display:0:12}..."
     fi
 
+    # Append team indicator to uptime if teams enabled
+    uptime_display="$uptime"
+    [[ -n "$local_teams" ]] && uptime_display="$uptime [team]"
+
     printf "%-8s %-15s %-12s %-35s %-15s %s\n" \
         "$local_pid" \
         "$local_tool" \
         "$local_provider" \
         "$model_display" \
         "$region_display" \
-        "$uptime"
+        "$uptime_display"
 done
 
 # Also check for native processes not tracked by our sessions

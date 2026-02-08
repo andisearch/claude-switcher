@@ -5,6 +5,19 @@ All notable changes to AI Runner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-02-07
+
+### Added
+- **Agent Teams support (`--team`)**: Enable Claude Code's multi-agent collaboration feature
+  - `ai --team` sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to enable agent teams
+  - Use Claude Code's native `--teammate-mode` flag for display control (`in-process`, `tmux`)
+  - Works with all providers (AWS, Vertex, Anthropic API, Azure, Vercel, Pro, Ollama, LM Studio)
+  - Interactive mode only — warns via stderr if explicitly passed in script mode; silently skipped when from saved defaults
+  - Persistable with `ai --team --set-default`; both `--team` and `--teammate-mode` are saved
+  - Session tracking includes team status; `ai-sessions` shows `[team]` indicator
+  - `ai-status` displays agent teams environment variable when set
+- **Tests 23-24**: Agent teams flag parsing and heredoc sync validation
+
 ## [2.3.0] - 2026-02-07
 
 ### Added

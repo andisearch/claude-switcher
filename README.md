@@ -131,6 +131,11 @@ ai --aws --resume
 # Set a default provider+model for when you run 'ai' with no flags
 ai --vercel --opus --set-default
 ai --clear-default              # Remove saved default
+
+# Enable agent teams (experimental, interactive only)
+ai --team                        # Auto display mode
+ai --aws --opus --team           # Teams with AWS Bedrock + Opus
+ai --team --teammate-mode tmux   # Teams with tmux split panes
 ```
 
 ## Features
@@ -217,6 +222,25 @@ echo "Explain what a Dockerfile does" | ai
 # Override provider from shebang
 curl -fsSL https://example.com/script.md | ai --aws
 ```
+
+### Agent Teams (Experimental)
+
+Enable [Claude Code's agent teams](https://code.claude.com/docs/en/agent-teams) — multiple Claude instances collaborating on shared tasks with one session as lead coordinating teammates.
+
+```bash
+ai --team                        # Enable agent teams
+ai --aws --opus --team           # Combine with any provider
+ai --team --teammate-mode tmux   # Split panes via tmux
+```
+
+| Flag | Purpose |
+|------|---------|
+| `--team` | **AI Runner flag** — enables agent teams by setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
+| `--teammate-mode <mode>` | **Claude Code native flag** — controls display: `in-process`, `tmux`, or `auto` (default) |
+
+- Interactive mode only (not supported in shebang/piped script modes)
+- Works with all providers — coordination is through Claude Code's internal task list, not provider-specific
+- Token usage scales with team size (5 teammates ≈ 5× tokens)
 
 ## Providers
 

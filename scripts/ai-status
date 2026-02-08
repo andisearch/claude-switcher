@@ -184,6 +184,7 @@ if [ -n "$ANTHROPIC_MODEL" ] || [ -n "$CLAUDE_CODE_USE_BEDROCK" ] || [ -n "$CLAU
     [ "$CLAUDE_CODE_USE_VERTEX" = "1" ] && echo "  CLAUDE_CODE_USE_VERTEX: enabled"
     [ "$CLAUDE_CODE_USE_FOUNDRY" = "1" ] && echo "  CLAUDE_CODE_USE_FOUNDRY: enabled"
     [ -n "$ANTHROPIC_BASE_URL" ] && echo "  ANTHROPIC_BASE_URL: $ANTHROPIC_BASE_URL"
+    [ "$CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" = "1" ] && echo "  Agent Teams: enabled"
     echo ""
 fi
 

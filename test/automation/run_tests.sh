@@ -517,6 +517,67 @@ test_heredoc_sync() {
 }
 
 #=============================================================================
+# TEST 23: Agent teams flag parsing
+#=============================================================================
+test_agent_teams_flag() {
+    test_header "Agent teams flag parsing"
+
+    # Check --team flag recognized
+    if grep -q -- '--team|--teams)' "$PROJECT_DIR/scripts/ai"; then
+        pass "Agent teams flag --team recognized"
+    else
+        fail "Agent teams flag --team not found"
+    fi
+
+    # Check env var export
+    if grep -q 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' "$PROJECT_DIR/scripts/ai"; then
+        pass "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS env var export found"
+    else
+        fail "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS not found"
+    fi
+
+    # Check session tracking includes teams
+    if grep -q 'AI_SESSION_TEAMS' "$PROJECT_DIR/scripts/lib/core-utils.sh"; then
+        pass "Session tracking includes AI_SESSION_TEAMS"
+    else
+        fail "AI_SESSION_TEAMS not found in session tracking"
+    fi
+
+    # Check help text mentions --team
+    if grep -q 'AGENT TEAMS' "$PROJECT_DIR/scripts/ai"; then
+        pass "Help text documents --team flag"
+    else
+        fail "Help text missing --team documentation"
+    fi
+}
+
+#=============================================================================
+# TEST 24: Agent teams heredoc sync
+#=============================================================================
+test_agent_teams_heredoc_sync() {
+    test_header "Agent teams heredoc sync (scripts/ai vs setup.sh)"
+
+    # Both files should have --team flag parsing
+    local ai_has_team setup_has_team
+    ai_has_team=$(grep -c -- '--team|--teams)' "$PROJECT_DIR/scripts/ai" || true)
+    setup_has_team=$(grep -c -- '--team|--teams)' "$PROJECT_DIR/setup.sh" || true)
+
+    if [[ "$ai_has_team" -ge 1 && "$setup_has_team" -ge 1 ]]; then
+        pass "Both scripts/ai and setup.sh heredoc have --team flag parsing"
+    else
+        fail "Sync drift: scripts/ai has $ai_has_team, setup.sh has $setup_has_team --team) cases"
+    fi
+
+    # Both should handle TEAM_MODE variable
+    if grep -q 'TEAM_MODE' "$PROJECT_DIR/scripts/ai" && \
+       grep -q 'TEAM_MODE' "$PROJECT_DIR/setup.sh"; then
+        pass "Both handle TEAM_MODE variable"
+    else
+        fail "TEAM_MODE variable not synced"
+    fi
+}
+
+#=============================================================================
 # MAIN
 #=============================================================================
 main() {
@@ -547,6 +608,8 @@ main() {
     test_no_update_check
     test_source_metadata
     test_heredoc_sync
+    test_agent_teams_flag
+    test_agent_teams_heredoc_sync
 
     echo ""
     echo "=========================================="

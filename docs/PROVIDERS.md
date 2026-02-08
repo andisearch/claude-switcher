@@ -29,6 +29,8 @@ AI Runner loads this file at startup. You don't need to set environment variable
 | `--vercel` | Vercel AI Gateway | Cloud | Any model: Anthropic,OpenAI, xAI, Google, Meta, more |
 | `--pro` | Claude Pro | Subscription | Default if logged in |
 
+**Agent Teams:** All providers support agent teams (`ai --team`). Coordination uses Claude Code's internal task list and mailbox, not provider-specific features. See [Claude Code Agent Teams docs](https://code.claude.com/docs/en/agent-teams).
+
 ---
 
 ## Local Providers

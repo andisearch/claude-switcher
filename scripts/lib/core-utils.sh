@@ -126,17 +126,21 @@ load_defaults() {
 }
 
 save_defaults() {
-    local provider="$1" model_tier="$2" custom_model="$3"
+    local provider="$1" model_tier="$2" custom_model="$3" team_mode="${4:-}" teammate_mode="${5:-}"
     mkdir -p "$CONFIG_DIR"
     cat > "$DEFAULTS_FILE" << EOF
 # AI Runner defaults (set by: ai --set-default)
 AI_DEFAULT_PROVIDER="$provider"
 AI_DEFAULT_MODEL_TIER="$model_tier"
 AI_DEFAULT_CUSTOM_MODEL="$custom_model"
+AI_DEFAULT_TEAM_MODE="$team_mode"
+AI_DEFAULT_TEAMMATE_MODE="$teammate_mode"
 EOF
     local desc="${provider}"
     [[ -n "$model_tier" ]] && desc+=" --${model_tier}"
     [[ -n "$custom_model" ]] && desc+=" --model ${custom_model}"
+    [[ -n "$team_mode" ]] && desc+=" --team"
+    [[ -n "$teammate_mode" ]] && desc+=" --teammate-mode ${teammate_mode}"
     print_success "Saved default: ${desc}"
 }
 
@@ -151,6 +155,8 @@ format_defaults() {
     [[ -z "$desc" ]] && return 1
     [[ -n "$AI_DEFAULT_MODEL_TIER" ]] && desc+=" --${AI_DEFAULT_MODEL_TIER}"
     [[ -n "$AI_DEFAULT_CUSTOM_MODEL" ]] && desc+=" --model ${AI_DEFAULT_CUSTOM_MODEL}"
+    [[ -n "$AI_DEFAULT_TEAM_MODE" ]] && desc+=" --team"
+    [[ -n "$AI_DEFAULT_TEAMMATE_MODE" ]] && desc+=" --teammate-mode ${AI_DEFAULT_TEAMMATE_MODE}"
     echo "$desc"
 }
 
@@ -223,6 +229,7 @@ write_session_info() {
     local project="$6"
     local auth_method="$7"
     local tool="${8:-claude-code}"
+    local teams="${9:-}"
 
     mkdir -p "$SESSIONS_DIR"
 
@@ -237,6 +244,7 @@ AI_SESSION_SMALL_MODEL="${small_model}"
 AI_SESSION_REGION="${region}"
 AI_SESSION_PROJECT="${project}"
 AI_SESSION_AUTH_METHOD="${auth_method}"
+AI_SESSION_TEAMS="${teams}"
 AI_SESSION_START_TIME="$(date +%s)"
 AI_SESSION_PID="$$"
 EOF
