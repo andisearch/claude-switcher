@@ -1,12 +1,22 @@
 # Andi AIRun
 
-Run AI prompts like programs. Executable markdown with shebang, Unix pipes, and output redirection.
+Run AI prompts like programs. Executable markdown with shebang, Unix pipes, and output redirection. Extends Claude Code with cross-cloud provider switching and any-model support — free local or 100+ cloud models.
 
-`cat data.json | ./analyze.md > results.txt`
+```bash
+# Run Claude Code interactively with any model or provider, without changing your global config
+ai                                        # Regular Claude subscription (Pro, Max, or free)
+ai --aws --opus --team --resume           # Resume chats on AWS + Opus 4.6 + Agent Teams
+ai --ollama --model qwen3-coder           # Ollama local model
+ai --vercel --model openai/gpt-5.2-codex  # Vercel AI Gateway with 100+ models
 
-`ai --aws --opus script.md`
+# Run prompts like programs
+ai --azure --haiku script.md
 
-Extends [Claude Code](https://claude.ai/code) with on-the-fly cross-cloud provider and subscription switching. Use Claude on AWS Bedrock, Google Vertex, Azure, and the Vercel AI Gateway as well as the Anthropic API. Switch between them mid-conversation. Also supports local models (Ollama, LM Studio) and 100+ alternate cloud models via [Vercel AI Gateway](https://vercel.com/ai-gateway).
+# Automate tasks with executable markdown, Unix pipes and redirection
+cat data.json | ./analyze.md > results.txt
+```
+
+Switch between your [Claude Code](https://claude.ai/code) subscription and different clouds + models: AWS Bedrock, Google Vertex, Azure, Vercel + Anthropic API. Supports free local models ([Ollama](https://ollama.com/), [LM Studio](https://lmstudio.ai/)) and 100+ alternate cloud models via [Vercel AI Gateway](https://vercel.com/ai-gateway) or Ollama Cloud. Swap and resume conversations mid-task to avoid rate limits and keep working.
 
 [![GitHub Stars](https://img.shields.io/github/stars/andisearch/airun?style=for-the-badge&logo=github)](https://github.com/andisearch/airun/stargazers)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Support-yellow?logo=buy-me-a-coffee&style=for-the-badge)](https://buymeacoffee.com/andisearch)
@@ -22,7 +32,7 @@ Extends [Claude Code](https://claude.ai/code) with on-the-fly cross-cloud provid
 
 From [Andi AI Search](https://andisearch.com). [Star this repo](https://github.com/andisearch/airun) if it helps!
 
-**Latest:** `ai update` self-update command, version update notifications, Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
+**Latest:** Agent Teams support (`--team`), Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick Start
 
