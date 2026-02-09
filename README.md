@@ -3,7 +3,7 @@
 Run AI prompts like programs. Executable markdown with shebang, Unix pipes, and output redirection. Extends Claude Code with cross-cloud provider switching and any-model support — free local or 100+ cloud models.
 
 ```bash
-# Run Claude Code interactivel: any model or provider
+# Run Claude Code interactively: any model or provider
 ai                                        # Regular Claude subscription (Pro, Max)
 ai --aws --opus --team --resume           # Resume chats on AWS w/ Opus 4.6 + Agent Teams
 ai --ollama --bypass --model qwen3-coder  # Ollama local model with bypassPermissions set
