@@ -427,29 +427,120 @@ fi
 
 [[ "$SHOW_HELP" == true ]] && {
     cat << 'EOF'
-Usage: ai [OPTIONS] [file.md]
+ai - Run AI prompts as scripts and switch providers from the command line.
 
-Universal AI prompt interpreter - execute prompts across tools and providers.
+AI Runner wraps Claude Code with executable markdown and provider switching.
+Write prompts in .md files with a shebang line, pipe content from stdin, or
+launch interactive sessions -- all with a single command. Any flags not listed
+here are passed straight through to the underlying tool (claude).
 
-SUBCOMMANDS:
-  update              Update AI Runner to the latest version
+Usage:
+  ai [OPTIONS] [file.md]       Execute a markdown prompt or start a session
+  ai update                    Update AI Runner to the latest version
 
-TOOL FLAGS:
-  --tool <name>   Select AI tool (default: auto-detect)
-  --cc            Shorthand for Claude Code
+Modes:
+  ai                           Interactive session (like running 'claude')
+  ai prompt.md                 Execute markdown file as a prompt
+  ./prompt.md                  Same, via #!/usr/bin/env ai shebang
+  echo "Prompt" | ai           Execute piped text as a prompt
+  curl <url> | ai              Execute remote markdown from stdin
 
-PROVIDER FLAGS:
-  --aws, --vertex, --apikey, --azure, --vercel, --pro
-  --ollama (--ol), --lmstudio (--lm)
+Provider flags (pick one):
+  --aws                        AWS Bedrock
+  --vertex                     Google Vertex AI
+  --apikey                     Anthropic API direct
+  --azure                      Microsoft Azure
+  --vercel                     Vercel AI Gateway
+  --pro                        Claude Pro subscription
+  --ollama, --ol               Local Ollama (free, Anthropic-API-compatible)
+  --lmstudio, --lm             Local LM Studio (MLX support)
 
-MODEL FLAGS:
-  --opus/--high, --sonnet/--mid, --haiku/--low, --model <id>
+Model flags (pick one):
+  --opus, --high               Highest-tier model
+  --sonnet, --mid              Mid-tier model (default)
+  --haiku, --low               Lowest-tier model
+  --model <id>                 Specific model ID (e.g. claude-opus-4-6)
 
-PERMISSION SHORTCUTS:
-  --skip            Shortcut for --dangerously-skip-permissions
-  --bypass          Shortcut for --permission-mode bypassPermissions
+Tool flags:
+  --tool <name>                Select AI tool (default: auto-detect)
+  --cc                         Shorthand for --tool cc (Claude Code)
 
-Run 'ai --help' in dev mode for full help.
+Permission shortcuts:
+  --skip                       Shorthand for --dangerously-skip-permissions
+  --bypass                     Shorthand for --permission-mode bypassPermissions
+
+Agent teams (experimental):
+  --team                       Enable agent teams (interactive mode only)
+  --teammate-mode <mode>       Teammate display: in-process, tmux
+
+Output and input:
+  --output-format <fmt>        Output format: text, json, stream-json
+  --stdin-position <pos>       Place piped input before or after file content:
+                               'prepend' (default) or 'append'
+
+Defaults:
+  --set-default                Save current provider+model as persistent default
+  --clear-default              Remove saved defaults
+
+Other:
+  --resume                     Resume the most recent conversation
+  --version, -v                Show version
+  --help, -h                   Show this help
+
+Behavioral notes:
+
+  Provider resolution: CLI flags override saved defaults (--set-default),
+  which override shebang-embedded flags. If no provider is specified, ai
+  uses your current Claude subscription (same as running 'claude' directly).
+
+  Shebang flags: .md files can embed provider/model flags in the shebang:
+    #!/usr/bin/env ai --aws --opus
+  CLI flags always take precedence over shebang flags.
+
+  Stdin handling: When content is piped, it is prepended to the file content
+  by default. Use --stdin-position append to place it after. If no file is
+  given, piped content becomes the entire prompt.
+
+  Exit codes: ai exits with the same code as the underlying tool. A non-zero
+  exit means the tool reported an error.
+
+  Passthrough: Any flag not recognized by ai (e.g. --verbose, --allowedTools)
+  is forwarded to the underlying tool unchanged.
+
+Examples:
+
+  # Run a prompt file with the default provider
+  ai task.md
+
+  # Run with local Ollama (free, no API key needed)
+  ai --ollama task.md
+
+  # Run with AWS Bedrock using the strongest model
+  ai --aws --opus task.md
+
+  # Pipe a remote script to a local model
+  curl https://example.com/prompt.md | ai --ollama
+
+  # Start an interactive session with agent teams on AWS
+  ai --aws --opus --team
+
+  # Save AWS + Opus as your default, then just run 'ai'
+  ai --aws --opus --set-default
+  ai task.md   # uses saved AWS + Opus default
+
+  # Make a prompt executable with a shebang
+  cat > greet.md << 'PROMPT'
+  #!/usr/bin/env ai --ollama --haiku
+  Say hello and tell me a joke.
+  PROMPT
+  chmod +x greet.md
+  ./greet.md
+
+Backward compatibility:
+  All claude-* commands (claude-run, claude-aws, etc.) still work.
+  Shebangs using #!/usr/bin/env claude-run continue to work.
+
+Full docs: https://airun.me
 EOF
     exit 0
 }
