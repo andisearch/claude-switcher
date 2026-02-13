@@ -359,6 +359,7 @@ _parse_shebang_flags() {
             --live) SHEBANG_LIVE=true ;;
             --skip) SHEBANG_PERMISSION_SHORTCUT="skip" ;;
             --bypass) SHEBANG_PERMISSION_SHORTCUT="bypass" ;;
+            --cc) ;; # consumed by CLI parser, ignore in shebang re-parse
             *) SHEBANG_PASSTHROUGH+=("$arg") ;;
         esac
     done
