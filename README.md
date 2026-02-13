@@ -142,7 +142,7 @@ ai --live --skip task.md
 # Live output + file redirect (narration to console, clean content to file)
 ./live-report.md > report.md
 
-# Browser automation with live progress
+# Browser automation with live progress (--chrome is a Claude Code flag, passed through)
 ai --chrome --live --skip test-flow.md
 
 # Resume last conversation
@@ -190,6 +190,7 @@ Run ./test/automation/run_tests.sh and report results.
 #!/usr/bin/env -S ai --allowedTools 'Bash(npm test)' 'Read'
 Run the test suite and report results. Do not modify any files.
 ```
+(`--allowedTools` is a Claude Code flag, passed through by AI Runner.)
 
 **Usage:**
 ```bash
@@ -202,6 +203,8 @@ ai --opus task.md                  # Override: use Opus instead
 > **Tip:** Use `#!/usr/bin/env -S` (with `-S`) to pass flags in the shebang line. Standard `env` only accepts one argument, so `#!/usr/bin/env ai --aws` won't work — you need `-S` to split the string.
 
 > **Flag precedence:** CLI flags > shebang flags > saved defaults. Running `ai --vercel task.md` overrides the script's shebang provider. Shebang flags override `--set-default` preferences.
+
+> **Passthrough flags:** AI Runner handles its own flags (provider, model, `--live`, `--skip`, `--bypass`, `--team`, etc.) and forwards any unrecognized flags (e.g. `--chrome`, `--allowedTools`, `--output-format`, `--verbose`) to the underlying Claude Code process unchanged.
 
 > **Warning:** `--skip`, `--bypass`, and `--permission-mode bypassPermissions` give the AI full system access. Only run trusted scripts in trusted directories. Use `--allowedTools` for granular control. See **[docs/SCRIPTING.md](docs/SCRIPTING.md)** for details.
 
