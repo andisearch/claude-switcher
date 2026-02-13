@@ -5,6 +5,40 @@ All notable changes to AI Runner will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.4] - 2026-02-12
+
+### Fixed
+- **`--live` output splitting**: System prompt no longer hints at markdown headings, improving non-markdown output (code, JSON, plain text)
+- **`--live` "Done" message**: Changed "written to file" to "written" — the message appears for pipes too, not just file redirects
+
+## [2.3.3] - 2026-02-12
+
+### Fixed
+- **Shebang flag parsing**: `ai file.md` and `cat file.md | ai` now correctly
+  honor all shebang flags (provider, model, permissions, --live)
+- **Flag precedence**: Corrected to CLI > shebang > defaults (previously
+  shebang flags were ignored in Mode 1 and parsed too late in Mode 2)
+- **`--live` status messages**: Show `[AI Runner]` status on stderr when stdout
+  is redirected to file, so users get progress feedback during long-running scripts
+
+### Added
+- **`--live` flag**: Stream text output in real-time for script mode
+  - `ai --live --skip task.md` or `#!/usr/bin/env -S ai --skip --live` in shebangs
+  - Pipes `claude`'s `stream-json` output through `jq` to extract human-readable text
+  - Shows each agentic turn as it completes — useful for long-running scripts
+  - **Smart output splitting** when redirecting to a file (`> report.md`):
+    narration streams to stderr, clean content (from first `#` heading) goes to file,
+    "Done (N lines written)" status on stderr when complete
+  - Requires `jq` (clear error message if missing)
+  - Works in all script modes: shebang, piped, and CLI file execution
+  - Pairs well with `--chrome` for browser automation with real-time progress
+- **`examples/` directory**: Ready-to-run example scripts demonstrating key features
+  - `hello.md` — minimal shebang
+  - `analyze-code.md` — read-only analysis
+  - `run-tests.md` — automation with `--skip`
+  - `live-report.md` — live streaming with `--live`
+  - `analyze-stdin.md` — stdin piping
+
 ## [2.3.2] - 2026-02-09
 
 ### Added

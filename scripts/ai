@@ -36,6 +36,56 @@ source "$LIB_DIR/core-utils.sh"
 source "$LIB_DIR/provider-loader.sh"
 source "$LIB_DIR/tool-loader.sh"
 
+# Parse shebang flags into SHEBANG_* variables
+# Called early to establish: CLI > shebang > defaults precedence
+_parse_shebang_flags() {
+    local line="$1"
+    SHEBANG_PROVIDER=""
+    SHEBANG_MODEL_TIER=""
+    SHEBANG_LIVE=""
+    SHEBANG_PERMISSION_SHORTCUT=""
+    SHEBANG_PASSTHROUGH=()
+
+    # Only parse shebangs referencing ai, airun, or claude-run
+    [[ "$line" != *"ai"* && "$line" != *"claude-run"* ]] && return
+
+    # Extract flags after the command name
+    local flags=""
+    if [[ "$line" =~ (airun|claude-run|ai)[[:space:]]+(.*) ]]; then
+        flags="${BASH_REMATCH[2]}"
+    else
+        return
+    fi
+
+    local -a args
+    read -ra args <<< "$flags"
+    for arg in "${args[@]}"; do
+        case "$arg" in
+            --aws|--vertex|--apikey|--azure|--vercel|--pro)
+                SHEBANG_PROVIDER="${arg#--}" ;;
+            --ollama|--ol)
+                SHEBANG_PROVIDER="ollama" ;;
+            --lmstudio|--lm)
+                SHEBANG_PROVIDER="lmstudio" ;;
+            --opus|--high)
+                SHEBANG_MODEL_TIER="high" ;;
+            --sonnet|--mid)
+                SHEBANG_MODEL_TIER="mid" ;;
+            --haiku|--low)
+                SHEBANG_MODEL_TIER="low" ;;
+            --live)
+                SHEBANG_LIVE=true ;;
+            --skip)
+                SHEBANG_PERMISSION_SHORTCUT="skip" ;;
+            --bypass)
+                SHEBANG_PERMISSION_SHORTCUT="bypass" ;;
+            *)
+                # Pass through unrecognized flags (--chrome, --max-turns, etc.)
+                SHEBANG_PASSTHROUGH+=("$arg") ;;
+        esac
+    done
+}
+
 # Capture stdin early if being piped to (not a TTY)
 STDIN_CONTENT=""
 if [[ ! -t 0 ]]; then
@@ -59,6 +109,7 @@ TEAM_MODE=""
 TEAMMATE_MODE=""
 PERMISSION_SHORTCUT=""
 EXPLICIT_PERMISSION_MODE=false
+LIVE_OUTPUT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -131,6 +182,7 @@ while [[ $# -gt 0 ]]; do
         # Permission shortcuts
         --skip)    PERMISSION_SHORTCUT="skip"; shift ;;
         --bypass)  PERMISSION_SHORTCUT="bypass"; shift ;;
+        --live)    LIVE_OUTPUT=true; shift ;;
 
         # Permission flags (intercept to track explicit usage)
         --permission-mode)
@@ -191,6 +243,28 @@ while [[ $# -gt 0 ]]; do
             shift ;;
     esac
 done
+
+# --- Early shebang flag parsing ---
+# Extract shebang from file or stdin and parse flags
+# Precedence: CLI > shebang > saved defaults
+_SHEBANG_LINE=""
+if [[ -n "$MD_FILE" && -f "$MD_FILE" ]]; then
+    _SHEBANG_LINE=$(head -1 "$MD_FILE")
+elif [[ -n "$STDIN_CONTENT" ]]; then
+    _SHEBANG_LINE="${STDIN_CONTENT%%$'\n'*}"
+fi
+
+if [[ "$_SHEBANG_LINE" == "#!"* ]]; then
+    _parse_shebang_flags "$_SHEBANG_LINE"
+
+    # Apply shebang flags where CLI didn't set them
+    [[ -z "$PROVIDER_FLAG" && -n "$SHEBANG_PROVIDER" ]] && PROVIDER_FLAG="$SHEBANG_PROVIDER"
+    [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$SHEBANG_MODEL_TIER" ]] && MODEL_TIER="$SHEBANG_MODEL_TIER"
+    [[ "$LIVE_OUTPUT" != true && "$SHEBANG_LIVE" == true ]] && LIVE_OUTPUT=true
+    [[ -z "$PERMISSION_SHORTCUT" && -n "$SHEBANG_PERMISSION_SHORTCUT" ]] && PERMISSION_SHORTCUT="$SHEBANG_PERMISSION_SHORTCUT"
+    # Pass through unrecognized flags (--chrome, --max-turns, etc.)
+    [[ ${#SHEBANG_PASSTHROUGH[@]} -gt 0 ]] && CLAUDE_ARGS+=("${SHEBANG_PASSTHROUGH[@]}")
+fi
 
 # Resolve permission shortcuts (explicit flags take precedence)
 if [[ -n "$PERMISSION_SHORTCUT" ]]; then
@@ -262,6 +336,7 @@ Agent teams (experimental):
 
 Output and input:
   --output-format <fmt>        Output format: text, json, stream-json
+  --live                       Stream text output in real-time (script mode)
   --stdin-position <pos>       Place piped input before or after file content:
                                'prepend' (default) or 'append'
 
@@ -276,13 +351,15 @@ Other:
 
 Behavioral notes:
 
-  Provider resolution: CLI flags override saved defaults (--set-default),
-  which override shebang-embedded flags. If no provider is specified, ai
-  uses your current Claude subscription (same as running 'claude' directly).
+  Flag precedence (highest to lowest):
+    1. CLI flags          ai --aws --opus file.md
+    2. Shebang flags      #!/usr/bin/env -S ai --aws --opus
+    3. Saved defaults     ai --aws --opus --set-default
+    4. Auto-detection     Current Claude subscription
 
-  Shebang flags: .md files can embed provider/model flags in the shebang:
-    #!/usr/bin/env ai --aws --opus
-  CLI flags always take precedence over shebang flags.
+  CLI flags always override shebang flags, which override saved defaults.
+  If no provider is specified anywhere, ai uses your current Claude
+  subscription (same as running 'claude' directly).
 
   Stdin handling: When content is piped, it is prepended to the file content
   by default. Use --stdin-position append to place it after. If no file is
@@ -529,6 +606,16 @@ if [[ "$NEEDS_VERBOSE" == true ]]; then
     CLAUDE_ARGS=("--verbose" "${CLAUDE_ARGS[@]}")
 fi
 
+# Handle --live mode
+if [[ "$LIVE_OUTPUT" == true ]]; then
+    if ! command -v jq &>/dev/null; then
+        print_error "--live requires jq. Install with: brew install jq"
+        exit 1
+    fi
+    CLAUDE_ARGS+=("--output-format" "stream-json" "--verbose")
+    export AI_LIVE_OUTPUT=true
+fi
+
 # Skip --team in non-interactive mode (shebang/piped)
 if [[ -n "$TEAM_MODE" ]] && [[ -n "$MD_FILE" || -n "$STDIN_CONTENT" ]]; then
     # Only warn if --team was explicitly passed on CLI (not from saved defaults)
@@ -567,8 +654,8 @@ $STDIN_CONTENT"
         fi
     fi
 
-    # Show status in interactive mode
-    if is_interactive; then
+    # Show status when interactive or when --live with stderr on a terminal
+    if is_interactive || [[ "$LIVE_OUTPUT" == true && -t 2 ]]; then
         print_status "Using: $(tool_name) + $(provider_name)"
         print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"
     fi
@@ -582,69 +669,12 @@ fi
 # MODE 2: PIPED SCRIPT EXECUTION (stdin without file)
 #=============================================================================
 if [[ -n "$STDIN_CONTENT" ]]; then
-    # Check for shebang in piped content and extract flags
+    # Strip shebang line from piped content if present (flags already parsed early)
     FIRST_LINE="${STDIN_CONTENT%%$'\n'*}"
+    [[ "$FIRST_LINE" == "#!"* ]] && CONTENT="${STDIN_CONTENT#*$'\n'}" || CONTENT="$STDIN_CONTENT"
 
-    if [[ "$FIRST_LINE" == "#!"* ]]; then
-        # Strip shebang line from content
-        CONTENT="${STDIN_CONTENT#*$'\n'}"
-
-        # Extract flags from shebang (e.g., "#!/usr/bin/env ai --ollama --opus")
-        if [[ "$FIRST_LINE" == *"ai"* ]] || [[ "$FIRST_LINE" == *"airun"* ]] || [[ "$FIRST_LINE" == *"claude-run"* ]]; then
-            SHEBANG_FLAGS="${FIRST_LINE#*ai}"
-            SHEBANG_FLAGS="${SHEBANG_FLAGS#*airun}"
-            SHEBANG_FLAGS="${SHEBANG_FLAGS#*claude-run}"
-            # Trim leading whitespace
-            SHEBANG_FLAGS="${SHEBANG_FLAGS#"${SHEBANG_FLAGS%%[![:space:]]*}"}"
-
-            # Parse shebang flags (CLI flags take precedence)
-            if [[ -n "$SHEBANG_FLAGS" ]]; then
-                read -ra SHEBANG_ARR <<< "$SHEBANG_FLAGS"
-                for arg in "${SHEBANG_ARR[@]}"; do
-                    case "$arg" in
-                        --aws|--vertex|--apikey|--azure|--vercel|--pro|--ollama)
-                            # Provider flags - only use if not already set by CLI
-                            [[ -z "$PROVIDER_FLAG" ]] && PROVIDER_FLAG="${arg#--}"
-                            ;;
-                        --opus|--sonnet|--haiku|--high|--mid|--low)
-                            # Model flags
-                            [[ -z "$MODEL_TIER" ]] && case "$arg" in
-                                --opus|--high) MODEL_TIER="high" ;;
-                                --sonnet|--mid) MODEL_TIER="mid" ;;
-                                --haiku|--low) MODEL_TIER="low" ;;
-                            esac
-                            ;;
-                        --skip|--bypass)
-                            # Permission shortcuts - only use if not already set by CLI
-                            [[ -z "$PERMISSION_SHORTCUT" && "$EXPLICIT_PERMISSION_MODE" != true ]] && \
-                                PERMISSION_SHORTCUT="${arg#--}"
-                            ;;
-                        *)
-                            # Other flags pass through
-                            CLAUDE_ARGS+=("$arg")
-                            ;;
-                    esac
-                done
-            fi
-        fi
-    else
-        CONTENT="$STDIN_CONTENT"
-    fi
-
-    # Resolve permission shortcuts from shebang (if not already resolved by CLI)
-    if [[ -n "$PERMISSION_SHORTCUT" ]]; then
-        if [[ "$EXPLICIT_PERMISSION_MODE" == true ]]; then
-            : # CLI explicit flag already takes precedence (warning already shown if from CLI)
-        else
-            case "$PERMISSION_SHORTCUT" in
-                skip)   CLAUDE_ARGS+=("--dangerously-skip-permissions") ;;
-                bypass) CLAUDE_ARGS+=("--permission-mode" "bypassPermissions") ;;
-            esac
-        fi
-    fi
-
-    # Show status in interactive mode
-    if is_interactive; then
+    # Show status when interactive or when --live with stderr on a terminal
+    if is_interactive || [[ "$LIVE_OUTPUT" == true && -t 2 ]]; then
         print_status "Using: $(tool_name) + $(provider_name)"
         print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"
     fi

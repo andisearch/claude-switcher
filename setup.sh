@@ -331,6 +331,39 @@ source "$AI_RUNNER_SHARE_DIR/lib/core-utils.sh"
 source "$AI_RUNNER_SHARE_DIR/lib/provider-loader.sh"
 source "$AI_RUNNER_SHARE_DIR/lib/tool-loader.sh"
 
+# Parse shebang flags into SHEBANG_* variables
+_parse_shebang_flags() {
+    local line="$1"
+    SHEBANG_PROVIDER=""
+    SHEBANG_MODEL_TIER=""
+    SHEBANG_LIVE=""
+    SHEBANG_PERMISSION_SHORTCUT=""
+    SHEBANG_PASSTHROUGH=()
+    [[ "$line" != *"ai"* && "$line" != *"claude-run"* ]] && return
+    local flags=""
+    if [[ "$line" =~ (airun|claude-run|ai)[[:space:]]+(.*) ]]; then
+        flags="${BASH_REMATCH[2]}"
+    else
+        return
+    fi
+    local -a args
+    read -ra args <<< "$flags"
+    for arg in "${args[@]}"; do
+        case "$arg" in
+            --aws|--vertex|--apikey|--azure|--vercel|--pro) SHEBANG_PROVIDER="${arg#--}" ;;
+            --ollama|--ol) SHEBANG_PROVIDER="ollama" ;;
+            --lmstudio|--lm) SHEBANG_PROVIDER="lmstudio" ;;
+            --opus|--high) SHEBANG_MODEL_TIER="high" ;;
+            --sonnet|--mid) SHEBANG_MODEL_TIER="mid" ;;
+            --haiku|--low) SHEBANG_MODEL_TIER="low" ;;
+            --live) SHEBANG_LIVE=true ;;
+            --skip) SHEBANG_PERMISSION_SHORTCUT="skip" ;;
+            --bypass) SHEBANG_PERMISSION_SHORTCUT="bypass" ;;
+            *) SHEBANG_PASSTHROUGH+=("$arg") ;;
+        esac
+    done
+}
+
 # Capture stdin early if being piped to
 STDIN_CONTENT=""
 if [[ ! -t 0 ]]; then
@@ -354,6 +387,7 @@ TEAM_MODE=""
 TEAMMATE_MODE=""
 PERMISSION_SHORTCUT=""
 EXPLICIT_PERMISSION_MODE=false
+LIVE_OUTPUT=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -381,6 +415,7 @@ while [[ $# -gt 0 ]]; do
         --teammate-mode=*) TEAMMATE_MODE="${1#*=}"; CLAUDE_ARGS+=("$1"); shift ;;
         --skip) PERMISSION_SHORTCUT="skip"; shift ;;
         --bypass) PERMISSION_SHORTCUT="bypass"; shift ;;
+        --live) LIVE_OUTPUT=true; shift ;;
         --permission-mode) EXPLICIT_PERMISSION_MODE=true; CLAUDE_ARGS+=("$1" "$2"); shift 2 ;;
         --permission-mode=*) EXPLICIT_PERMISSION_MODE=true; CLAUDE_ARGS+=("$1"); shift ;;
         --dangerously-skip-permissions) EXPLICIT_PERMISSION_MODE=true; CLAUDE_ARGS+=("$1"); shift ;;
@@ -410,6 +445,23 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# --- Early shebang flag parsing ---
+_SHEBANG_LINE=""
+if [[ -n "$MD_FILE" && -f "$MD_FILE" ]]; then
+    _SHEBANG_LINE=$(head -1 "$MD_FILE")
+elif [[ -n "$STDIN_CONTENT" ]]; then
+    _SHEBANG_LINE="${STDIN_CONTENT%%$'\n'*}"
+fi
+if [[ "$_SHEBANG_LINE" == "#!"* ]]; then
+    _parse_shebang_flags "$_SHEBANG_LINE"
+    # Apply shebang flags where CLI didn't set them
+    [[ -z "$PROVIDER_FLAG" && -n "$SHEBANG_PROVIDER" ]] && PROVIDER_FLAG="$SHEBANG_PROVIDER"
+    [[ -z "$MODEL_TIER" && -z "$CUSTOM_MODEL" && -n "$SHEBANG_MODEL_TIER" ]] && MODEL_TIER="$SHEBANG_MODEL_TIER"
+    [[ "$LIVE_OUTPUT" != true && "$SHEBANG_LIVE" == true ]] && LIVE_OUTPUT=true
+    [[ -z "$PERMISSION_SHORTCUT" && -n "$SHEBANG_PERMISSION_SHORTCUT" ]] && PERMISSION_SHORTCUT="$SHEBANG_PERMISSION_SHORTCUT"
+    [[ ${#SHEBANG_PASSTHROUGH[@]} -gt 0 ]] && CLAUDE_ARGS+=("${SHEBANG_PASSTHROUGH[@]}")
+fi
+
 # Resolve permission shortcuts (explicit flags take precedence)
 if [[ -n "$PERMISSION_SHORTCUT" ]]; then
     if [[ "$EXPLICIT_PERMISSION_MODE" == true ]]; then
@@ -420,7 +472,7 @@ if [[ -n "$PERMISSION_SHORTCUT" ]]; then
             bypass) CLAUDE_ARGS+=("--permission-mode" "bypassPermissions") ;;
         esac
     fi
-    PERMISSION_SHORTCUT=""  # Clear so shebang parsing doesn't re-resolve
+    PERMISSION_SHORTCUT=""
 fi
 
 [[ "$SHOW_VERSION" == true ]] && { echo "ai-runner v$AI_RUNNER_VERSION"; exit 0; }
@@ -475,6 +527,7 @@ Agent teams (experimental):
 
 Output and input:
   --output-format <fmt>        Output format: text, json, stream-json
+  --live                       Stream text output in real-time (script mode)
   --stdin-position <pos>       Place piped input before or after file content:
                                'prepend' (default) or 'append'
 
@@ -489,13 +542,15 @@ Other:
 
 Behavioral notes:
 
-  Provider resolution: CLI flags override saved defaults (--set-default),
-  which override shebang-embedded flags. If no provider is specified, ai
-  uses your current Claude subscription (same as running 'claude' directly).
+  Flag precedence (highest to lowest):
+    1. CLI flags          ai --aws --opus file.md
+    2. Shebang flags      #!/usr/bin/env -S ai --aws --opus
+    3. Saved defaults     ai --aws --opus --set-default
+    4. Auto-detection     Current Claude subscription
 
-  Shebang flags: .md files can embed provider/model flags in the shebang:
-    #!/usr/bin/env ai --aws --opus
-  CLI flags always take precedence over shebang flags.
+  CLI flags always override shebang flags, which override saved defaults.
+  If no provider is specified anywhere, ai uses your current Claude
+  subscription (same as running 'claude' directly).
 
   Stdin handling: When content is piped, it is prepended to the file content
   by default. Use --stdin-position append to place it after. If no file is
@@ -649,6 +704,16 @@ trap 'cleanup_session_info; provider_cleanup_env' EXIT
 
 [[ "$NEEDS_VERBOSE" == true ]] && CLAUDE_ARGS=("--verbose" "${CLAUDE_ARGS[@]}")
 
+# Handle --live mode
+if [[ "$LIVE_OUTPUT" == true ]]; then
+    if ! command -v jq &>/dev/null; then
+        print_error "--live requires jq. Install with: brew install jq"
+        exit 1
+    fi
+    CLAUDE_ARGS+=("--output-format" "stream-json" "--verbose")
+    export AI_LIVE_OUTPUT=true
+fi
+
 # Skip --team in non-interactive mode (shebang/piped)
 if [[ -n "$TEAM_MODE" ]] && [[ -n "$MD_FILE" || -n "$STDIN_CONTENT" ]]; then
     [[ -n "$CLI_TEAM_MODE" ]] && print_warning "Agent teams (--team) requires interactive mode. Ignoring flag."
@@ -671,7 +736,7 @@ stdin:
 ---
 $STDIN_CONTENT"
     }
-    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
+    (is_interactive || [[ "$LIVE_OUTPUT" == true && -t 2 ]]) && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
     tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
     exit $?
 fi
@@ -679,7 +744,7 @@ fi
 if [[ -n "$STDIN_CONTENT" ]]; then
     FIRST_LINE="${STDIN_CONTENT%%$'\n'*}"
     [[ "$FIRST_LINE" == "#!"* ]] && CONTENT="${STDIN_CONTENT#*$'\n'}" || CONTENT="$STDIN_CONTENT"
-    is_interactive && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
+    (is_interactive || [[ "$LIVE_OUTPUT" == true && -t 2 ]]) && { print_status "Using: $(tool_name) + $(provider_name)"; print_status "Model: ${ANTHROPIC_MODEL:-(system default)}"; }
     tool_execute_prompt "$CONTENT" "${CLAUDE_ARGS[@]}"
     exit $?
 fi

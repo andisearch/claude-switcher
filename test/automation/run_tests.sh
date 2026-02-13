@@ -544,7 +544,7 @@ test_agent_teams_flag() {
     fi
 
     # Check help text mentions --team
-    if grep -q 'AGENT TEAMS' "$PROJECT_DIR/scripts/ai"; then
+    if grep -q 'Agent teams' "$PROJECT_DIR/scripts/ai"; then
         pass "Help text documents --team flag"
     else
         fail "Help text missing --team documentation"
@@ -714,19 +714,25 @@ test_permission_shortcut_heredoc_sync() {
 # TEST 28: Permission shortcut shebang parsing (piped mode)
 #=============================================================================
 test_permission_shortcut_shebang() {
-    test_header "Permission shortcut shebang parsing (piped mode)"
+    test_header "Permission shortcut shebang parsing"
 
     local ai_script="$PROJECT_DIR/scripts/ai"
 
-    # Check --skip|--bypass in shebang flag parsing section
-    if grep -q -- '--skip|--bypass)' "$ai_script"; then
-        pass "--skip/--bypass handled in shebang flag parsing"
+    # Check --skip and --bypass handled in _parse_shebang_flags
+    if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- '--skip)'; then
+        pass "--skip handled in shebang flag parser"
     else
-        fail "--skip/--bypass not found in shebang flag parsing"
+        fail "--skip not found in shebang flag parser"
     fi
 
-    # Check that shebang shortcuts respect CLI precedence
-    if grep -A2 -- '--skip|--bypass)' "$ai_script" | grep -q 'PERMISSION_SHORTCUT.*EXPLICIT_PERMISSION_MODE'; then
+    if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- '--bypass)'; then
+        pass "--bypass handled in shebang flag parser"
+    else
+        fail "--bypass not found in shebang flag parser"
+    fi
+
+    # Check that shebang shortcuts respect CLI precedence (only applied when empty)
+    if grep -q '\-z "$PERMISSION_SHORTCUT".*SHEBANG_PERMISSION_SHORTCUT' "$ai_script"; then
         pass "Shebang shortcuts check CLI precedence before applying"
     else
         fail "Shebang shortcuts don't check CLI precedence"
@@ -740,14 +746,14 @@ test_permission_shortcut_help() {
     test_header "Permission shortcut help text"
 
     # Check help text documents --skip
-    if grep -q -- '--skip.*Shortcut.*dangerously-skip-permissions' "$PROJECT_DIR/scripts/ai"; then
+    if grep -q -- '--skip.*Shorthand.*dangerously-skip-permissions' "$PROJECT_DIR/scripts/ai"; then
         pass "Help text documents --skip shortcut"
     else
         fail "Help text missing --skip documentation"
     fi
 
     # Check help text documents --bypass
-    if grep -q -- '--bypass.*Shortcut.*permission-mode bypassPermissions' "$PROJECT_DIR/scripts/ai"; then
+    if grep -q -- '--bypass.*Shorthand.*permission-mode bypassPermissions' "$PROJECT_DIR/scripts/ai"; then
         pass "Help text documents --bypass shortcut"
     else
         fail "Help text missing --bypass documentation"
@@ -801,6 +807,201 @@ test_permission_shortcut_functional() {
 }
 
 #=============================================================================
+# TEST 31: Early shebang flag parsing
+#=============================================================================
+test_shebang_flag_parsing() {
+    test_header "Early shebang flag parsing"
+
+    local ai_script="$PROJECT_DIR/scripts/ai"
+
+    # Check _parse_shebang_flags function exists
+    if grep -q '_parse_shebang_flags()' "$ai_script"; then
+        pass "_parse_shebang_flags function exists"
+    else
+        fail "_parse_shebang_flags function not found"
+    fi
+
+    # Check SHEBANG_* variables exist
+    for var in SHEBANG_PROVIDER SHEBANG_MODEL_TIER SHEBANG_LIVE SHEBANG_PERMISSION_SHORTCUT; do
+        if grep -q "$var" "$ai_script"; then
+            pass "$var variable exists"
+        else
+            fail "$var variable not found"
+        fi
+    done
+
+    # Check early extraction checks both MD_FILE and STDIN_CONTENT
+    if grep -q 'MD_FILE.*SHEBANG_LINE\|_SHEBANG_LINE.*MD_FILE' "$ai_script" || \
+       (grep -q 'MD_FILE' "$ai_script" && grep -q '_SHEBANG_LINE' "$ai_script"); then
+        pass "Early extraction checks MD_FILE"
+    else
+        fail "Early extraction missing MD_FILE check"
+    fi
+
+    if grep -q 'STDIN_CONTENT.*SHEBANG_LINE\|_SHEBANG_LINE.*STDIN_CONTENT' "$ai_script" || \
+       grep -A2 'elif.*STDIN_CONTENT' "$ai_script" | grep -q '_SHEBANG_LINE'; then
+        pass "Early extraction checks STDIN_CONTENT"
+    else
+        fail "Early extraction missing STDIN_CONTENT check"
+    fi
+
+    # Check all provider flags handled in parser
+    for flag in aws vertex apikey azure vercel pro; do
+        if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--$flag"; then
+            pass "Shebang parser handles --$flag"
+        else
+            fail "Shebang parser missing --$flag"
+        fi
+    done
+
+    # Check local provider aliases
+    for flag in ollama lmstudio ol lm; do
+        if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--$flag"; then
+            pass "Shebang parser handles --$flag"
+        else
+            fail "Shebang parser missing --$flag"
+        fi
+    done
+
+    # Check model tier flags
+    for flag in opus sonnet haiku high mid low; do
+        if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--$flag"; then
+            pass "Shebang parser handles --$flag"
+        else
+            fail "Shebang parser missing --$flag"
+        fi
+    done
+
+    # Check --live and --skip/--bypass
+    if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--live"; then
+        pass "Shebang parser handles --live"
+    else
+        fail "Shebang parser missing --live"
+    fi
+
+    if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--skip"; then
+        pass "Shebang parser handles --skip"
+    else
+        fail "Shebang parser missing --skip"
+    fi
+
+    if grep -A50 '_parse_shebang_flags()' "$ai_script" | grep -q -- "--bypass"; then
+        pass "Shebang parser handles --bypass"
+    else
+        fail "Shebang parser missing --bypass"
+    fi
+}
+
+#=============================================================================
+# TEST 32: Shebang flag precedence
+#=============================================================================
+test_shebang_flag_precedence() {
+    test_header "Shebang flag precedence"
+
+    local ai_script="$PROJECT_DIR/scripts/ai"
+
+    # Verify shebang flags applied BEFORE defaults (shebang application appears before load_defaults)
+    local shebang_line defaults_line
+    shebang_line=$(grep -n 'Apply shebang flags' "$ai_script" | head -1 | cut -d: -f1)
+    defaults_line=$(grep -n 'load_defaults' "$ai_script" | head -1 | cut -d: -f1)
+    if [[ -n "$shebang_line" && -n "$defaults_line" && "$shebang_line" -lt "$defaults_line" ]]; then
+        pass "Shebang flags applied before load_defaults"
+    else
+        fail "Shebang flags not applied before load_defaults (shebang:$shebang_line defaults:$defaults_line)"
+    fi
+
+    # Verify CLI precedence: PROVIDER_FLAG only set from shebang when empty
+    if grep -q '\-z "$PROVIDER_FLAG".*SHEBANG_PROVIDER' "$ai_script"; then
+        pass "PROVIDER_FLAG only set from shebang when empty"
+    else
+        fail "PROVIDER_FLAG precedence check not found"
+    fi
+
+    # Verify MODEL_TIER only set from shebang when both MODEL_TIER and CUSTOM_MODEL are empty
+    if grep -q '\-z "$MODEL_TIER".*\-z "$CUSTOM_MODEL".*SHEBANG_MODEL_TIER' "$ai_script"; then
+        pass "MODEL_TIER only set from shebang when both MODEL_TIER and CUSTOM_MODEL empty"
+    else
+        fail "MODEL_TIER precedence check not found"
+    fi
+
+    # Verify LIVE_OUTPUT only set from shebang when not already true
+    if grep -q 'LIVE_OUTPUT.*!=.*true.*SHEBANG_LIVE' "$ai_script"; then
+        pass "LIVE_OUTPUT only set from shebang when not already true"
+    else
+        fail "LIVE_OUTPUT precedence check not found"
+    fi
+
+    # Verify shebang PERMISSION_SHORTCUT merges into main var
+    if grep -q '\-z "$PERMISSION_SHORTCUT".*SHEBANG_PERMISSION_SHORTCUT' "$ai_script"; then
+        pass "Shebang PERMISSION_SHORTCUT merges into main var"
+    else
+        fail "Shebang PERMISSION_SHORTCUT merge not found"
+    fi
+
+    # Verify Mode 2 no longer has late shebang parser (no SHEBANG_FLAGS or SHEBANG_ARR)
+    # Check only in the Mode 2 section (after "MODE 2:" comment)
+    local mode2_content
+    mode2_content=$(sed -n '/MODE 2:/,/MODE 3:/p' "$ai_script")
+    if echo "$mode2_content" | grep -q 'SHEBANG_FLAGS\|SHEBANG_ARR'; then
+        fail "Mode 2 still has late shebang parser (SHEBANG_FLAGS/SHEBANG_ARR)"
+    else
+        pass "Mode 2 no longer has late shebang parser"
+    fi
+}
+
+#=============================================================================
+# TEST 33: Shebang and live heredoc sync
+#=============================================================================
+test_shebang_live_heredoc_sync() {
+    test_header "Shebang and live heredoc sync (scripts/ai vs setup.sh)"
+
+    local ai_script="$PROJECT_DIR/scripts/ai"
+    local setup_script="$PROJECT_DIR/setup.sh"
+
+    # _parse_shebang_flags exists in both
+    if grep -q '_parse_shebang_flags' "$ai_script" && grep -q '_parse_shebang_flags' "$setup_script"; then
+        pass "_parse_shebang_flags exists in both files"
+    else
+        fail "_parse_shebang_flags not synced"
+    fi
+
+    # SHEBANG_PROVIDER exists in both
+    if grep -q 'SHEBANG_PROVIDER' "$ai_script" && grep -q 'SHEBANG_PROVIDER' "$setup_script"; then
+        pass "SHEBANG_PROVIDER exists in both files"
+    else
+        fail "SHEBANG_PROVIDER not synced"
+    fi
+
+    # SHEBANG_LIVE exists in both
+    if grep -q 'SHEBANG_LIVE' "$ai_script" && grep -q 'SHEBANG_LIVE' "$setup_script"; then
+        pass "SHEBANG_LIVE exists in both files"
+    else
+        fail "SHEBANG_LIVE not synced"
+    fi
+
+    # "Apply shebang flags" comment exists in both
+    if grep -q 'Apply shebang flags' "$ai_script" && grep -q 'Apply shebang flags' "$setup_script"; then
+        pass "'Apply shebang flags' comment exists in both files"
+    else
+        fail "'Apply shebang flags' comment not synced"
+    fi
+
+    # --live status condition (LIVE_OUTPUT.*-t 2) exists in both
+    if grep -q 'LIVE_OUTPUT.*-t 2' "$ai_script" && grep -q 'LIVE_OUTPUT.*-t 2' "$setup_script"; then
+        pass "--live status condition (LIVE_OUTPUT + -t 2) exists in both files"
+    else
+        fail "--live status condition not synced"
+    fi
+
+    # --live help text exists in both
+    if grep -q '\-\-live.*Stream text output' "$ai_script" && grep -q '\-\-live.*Stream text output' "$setup_script"; then
+        pass "--live help text exists in both files"
+    else
+        fail "--live help text not synced"
+    fi
+}
+
+#=============================================================================
 # MAIN
 #=============================================================================
 main() {
@@ -839,6 +1040,9 @@ main() {
     test_permission_shortcut_shebang
     test_permission_shortcut_help
     test_permission_shortcut_functional
+    test_shebang_flag_parsing
+    test_shebang_flag_precedence
+    test_shebang_live_heredoc_sync
 
     echo ""
     echo "=========================================="

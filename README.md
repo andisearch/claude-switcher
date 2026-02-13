@@ -32,7 +32,7 @@ Switch between your [Claude Code](https://claude.ai/code) subscription and diffe
 
 From [Andi AI Search](https://andisearch.com). [Star this repo](https://github.com/andisearch/airun) if it helps!
 
-**Latest:** Agent Teams support (`--team`), Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
+**Latest:** Live streaming output (`--live`), Agent Teams (`--team`), Opus 4.6 models, local models with Ollama and LM Studio, persistent defaults (`--set-default`), Vercel AI Gateway with 100+ models. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick Start
 
@@ -136,6 +136,15 @@ ai --high task.md                 # Same as --opus
 ai --mid task.md                  # Same as --sonnet
 ai --low task.md                  # Same as --haiku
 
+# Stream output in real-time (instead of waiting for completion)
+ai --live --skip task.md
+
+# Live output + file redirect (narration to console, clean content to file)
+./live-report.md > report.md
+
+# Browser automation with live progress
+ai --chrome --live --skip test-flow.md
+
 # Resume last conversation
 ai --aws --resume
 
@@ -166,7 +175,7 @@ Use AWS Bedrock to analyze this code.
 ```
 
 ```markdown
-#!/usr/bin/env -S ai --opus --output-format stream-json
+#!/usr/bin/env -S ai --opus --live
 Review this PR for security issues. Stream output in real-time.
 ```
 
@@ -192,9 +201,11 @@ ai --opus task.md                  # Override: use Opus instead
 
 > **Tip:** Use `#!/usr/bin/env -S` (with `-S`) to pass flags in the shebang line. Standard `env` only accepts one argument, so `#!/usr/bin/env ai --aws` won't work — you need `-S` to split the string.
 
+> **Flag precedence:** CLI flags > shebang flags > saved defaults. Running `ai --vercel task.md` overrides the script's shebang provider. Shebang flags override `--set-default` preferences.
+
 > **Warning:** `--skip`, `--bypass`, and `--permission-mode bypassPermissions` give the AI full system access. Only run trusted scripts in trusted directories. Use `--allowedTools` for granular control. See **[docs/SCRIPTING.md](docs/SCRIPTING.md)** for details.
 
-See **[docs/SCRIPTING.md](docs/SCRIPTING.md)** for the full scripting & automation guide — permission modes, Claude Code flag pass-through, CI/CD patterns, and security best practices.
+See **[examples/](examples/)** for ready-to-run scripts and **[docs/SCRIPTING.md](docs/SCRIPTING.md)** for the full scripting & automation guide.
 
 ### Unix Pipe Support
 

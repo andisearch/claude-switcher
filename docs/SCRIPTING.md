@@ -89,6 +89,62 @@ Run the linter and fix any issues. Then run the test suite.
 Commit fixes with a descriptive message if all tests pass.
 ```
 
+## Live Output
+
+By default, `ai` in script mode waits for the full response before printing anything. Use `--live` to stream text to the terminal as it's generated — useful for long-running scripts where you want to see progress in real-time.
+
+### Text automation with live output
+```markdown
+#!/usr/bin/env -S ai --skip --live
+Run the test suite and report results step by step.
+```
+
+### Piped content with live streaming
+```bash
+cat data.json | ai --live --skip analyze.md
+```
+
+### Output redirection
+
+When stdout is redirected to a file, `--live` automatically separates narration from content:
+
+```bash
+./live-report.md > report.md
+```
+
+**Console (stderr):**
+```
+[AI Runner] Using: Claude Code + Claude Pro
+[AI Runner] Model: (system default)
+
+I'll explore the repository structure and key files...
+Now let me look at the core scripts and provider structure.
+Here's my report:
+[AI Runner] Done (70 lines written)
+```
+
+**File (stdout):**
+```markdown
+# Repository Summary
+...clean report content only...
+```
+
+How it works:
+- Intermediate turns (narration, progress) stream to stderr in real-time
+- The last turn is split at the first markdown heading (`#`)
+- Preamble text before the heading goes to stderr
+- Content from the heading onward goes to the file
+- A "Done (N lines written)" summary appears on stderr when complete
+
+### Browser automation with Chrome
+`--live` pairs well with `--chrome` (a Claude Code flag) for browser test scripts where steps take time and you need real-time progress:
+```markdown
+#!/usr/bin/env -S ai --skip --chrome --live
+Navigate to the app and verify the login flow works.
+```
+
+> **Note:** `--live` requires `jq` to be installed (`brew install jq` on macOS).
+
 ## Passing Claude Code Flags
 
 Any flag not recognized by `ai` is passed directly to Claude Code. Useful flags for scripts:
@@ -102,11 +158,25 @@ Any flag not recognized by `ai` is passed directly to Claude Code. Useful flags 
 | `--allowedTools` | Allow only specific tools | Restricted automation |
 | `--max-turns N` | Limit agentic loop iterations | Prevent runaway scripts |
 | `--output-format stream-json` | Structured JSON output | Pipeline integration |
+| `--live` | Stream text in real-time | Long-running scripts |
 
 Combine with `ai` flags freely:
 ```markdown
 #!/usr/bin/env -S ai --aws --opus --skip --max-turns 10
 ```
+
+## Flag Precedence
+
+`ai` resolves flags from multiple sources. Higher sources override lower ones:
+
+| Priority | Source | Example |
+|----------|--------|---------|
+| 1 (highest) | CLI flags | `ai --aws --opus script.md` |
+| 2 | Shebang flags | `#!/usr/bin/env -S ai --ollama --low` |
+| 3 | Saved defaults | `ai --aws --opus --set-default` |
+| 4 (lowest) | Auto-detection | Current Claude subscription |
+
+**Example:** A script has `#!/usr/bin/env -S ai --ollama --low`. Running `ai script.md` uses Ollama with the low-tier local model (shebang). Running `ai --aws script.md` uses AWS (CLI overrides shebang). If you also have `--set-default vertex`, the shebang still wins over the default.
 
 ## Permission Flag Precedence
 
