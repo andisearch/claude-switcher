@@ -156,6 +156,10 @@
 # export OLLAMA_MODEL_HIGH="qwen3:72b"           # For --opus/--high
 # export OLLAMA_MODEL_MID="qwen3-coder:32b"      # For --sonnet/--mid (default)
 # export OLLAMA_MODEL_LOW="qwen3:8b"             # For --haiku/--low
+#
+# Cloud models (no GPU required, 198K context):
+# export OLLAMA_MODEL_HIGH="minimax-m2.5:cloud"  # 80% SWE-bench, best coding
+# export OLLAMA_MODEL_MID="glm-5:cloud"          # 78% SWE-bench, strong reasoning
 
 # ============================================================================
 # LM Studio Configuration (Local)

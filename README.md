@@ -328,8 +328,9 @@ ollama pull qwen3-coder               # Pull a model (needs 24GB+ VRAM)
 ai --ollama                           # Run with Ollama
 
 # Cloud models — no GPU required, runs on Ollama's servers
-ollama pull glm-5:cloud               # Tiny download, runs remotely
-ai --ollama --model glm-5:cloud
+ollama pull minimax-m2.5:cloud        # Best coding (80% SWE-bench, MIT)
+ollama pull glm-5:cloud               # Best reasoning (78% SWE-bench, MIT)
+ai --ollama --model minimax-m2.5:cloud
 ```
 
 **LM Studio** — local models with MLX support (fast on latest Apple Silicon):

@@ -53,20 +53,21 @@ export CLAUDE_MODEL_SONNET_VERCEL="${CLAUDE_MODEL_SONNET_VERCEL:-anthropic/claud
 export CLAUDE_MODEL_OPUS_VERCEL="${CLAUDE_MODEL_OPUS_VERCEL:-anthropic/claude-opus-4.6}"
 export CLAUDE_MODEL_HAIKU_VERCEL="${CLAUDE_MODEL_HAIKU_VERCEL:-anthropic/claude-haiku-4.5}"
 
-# Ollama Model Defaults (Local)
+# Ollama Model Defaults (Local + Cloud)
 # See: https://docs.ollama.com/integrations/claude-code
 #
 # By default, AI Runner auto-detects available Ollama models.
 # To override auto-detection, uncomment and set specific models:
 #
-#   export OLLAMA_MODEL_HIGH="qwen3:72b"        # For --opus/--high
-#   export OLLAMA_MODEL_MID="qwen3-coder"       # For --sonnet/--mid
-#   export OLLAMA_MODEL_LOW="gemma3"            # For --haiku/--low
+# Local models (64K+ context, 24GB+ VRAM):
+#   export OLLAMA_MODEL_HIGH="qwen3:72b"            # For --opus/--high
+#   export OLLAMA_MODEL_MID="qwen3-coder"           # For --sonnet/--mid
+#   export OLLAMA_MODEL_LOW="gemma3"                # For --haiku/--low
 #
-# Recommended models with 64K+ context for Claude Code compatibility:
-#   - qwen3-coder: Coding optimized, good balance
-#   - glm-5:cloud (MIT license, strong reasoning, 198K context)
-#   - minimax-m2.5:cloud (fastest frontier, 198K context)
+# Cloud models (no GPU required, 198K context):
+#   export OLLAMA_MODEL_HIGH="minimax-m2.5:cloud"   # 80% SWE-bench, best coding (MIT)
+#   export OLLAMA_MODEL_MID="glm-5:cloud"           # 78% SWE-bench, strong reasoning (MIT)
+#   export OLLAMA_MODEL_LOW="glm-5:cloud"           # Same — no small cloud model yet
 
 # OpenRouter Model Defaults
 # See: https://openrouter.ai
