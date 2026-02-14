@@ -148,6 +148,9 @@ ai --quiet ./live-script.md > output.md
 # Browser automation with live progress (--chrome is a Claude Code flag, passed through)
 ai --chrome --live --skip test-flow.md
 
+# Override script variables (--topic, --style match declared vars: names)
+./summarize-topic.md --live --topic "the fall of rome" --style "peter griffin"
+
 # Resume last conversation
 ai --aws --resume
 
@@ -234,7 +237,14 @@ Write a {{length}} summary of {{topic}} in a {{style}} tone.
 ./summarize-topic.md --topic "robotics" --style formal  # overrides two
 ```
 
-Override flags matching declared var names are consumed — `--verbose` and other unrecognized flags still pass through to Claude Code. Only activates when front-matter contains `vars:` — no behavior change for existing scripts.
+Variable overrides mix freely with AI Runner flags like `--live` and provider overrides:
+
+```bash
+./summarize-topic.md --live --length "100 words" --topic "the fall of rome" --style "peter griffin"
+ai --aws --opus summarize-topic.md --topic "quantum computing"
+```
+
+Override flags matching declared var names are consumed — `--live`, `--aws`, and other unrecognized flags still pass through. Only activates when front-matter contains `vars:` — no behavior change for existing scripts.
 
 ### Unix Pipe Support
 

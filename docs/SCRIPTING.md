@@ -116,7 +116,17 @@ Target audience: {{audience}}.
 ./script.md --topic="robotics"           # equals form works too
 ```
 
-Override flags matching declared var names are consumed — they don't pass through to Claude Code. Non-matching flags like `--verbose` still pass through.
+Variable overrides mix freely with AI Runner flags and provider overrides:
+
+```bash
+# --live and --length/--topic/--style all work together
+./summarize-topic.md --live --length "100 words" --topic "the fall of rome" --style "peter griffin"
+
+# Override provider+model alongside variables
+ai --aws --opus summarize-topic.md --topic "quantum computing"
+```
+
+Override flags matching declared var names are consumed — they don't pass through to Claude Code. AI Runner flags (`--live`, `--aws`) and unrecognized flags (`--verbose`) still pass through normally.
 
 ### Rules
 

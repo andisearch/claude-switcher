@@ -50,12 +50,29 @@ cat data.json | ./extract.md | ./summarize.md > summary.txt
 
 See [docs/SCRIPTING.md](../docs/SCRIPTING.md) for composable patterns and the dispatcher pattern.
 
+## Variables
+
+`summarize-topic.md` declares variables with defaults. Override any combination from the CLI:
+
+```bash
+# Use all defaults (topic=machine learning, style=casual, length=short)
+./summarize-topic.md
+
+# Override everything — variable flags mix freely with AI Runner flags
+./summarize-topic.md --live --length "100 words" --topic "the fall of rome" --style "peter griffin"
+
+# Override provider and model too
+ai --aws --opus summarize-topic.md --topic "quantum computing" --style formal
+```
+
+Variable overrides (`--topic`, `--style`, `--length`) are consumed by AI Runner. AI Runner flags (`--live`, `--aws`, `--opus`) are handled normally. Unrecognized flags pass through to Claude Code.
+
 ## Key Concepts
 
 - **`--haiku`** = cheap/fast model for simple tasks (text generation, data analysis)
 - **`--sonnet`** = balanced model for code analysis, test running, report generation
 - **`--skip`** = full automation (can run commands, write files, use tools)
-- **`--live`** = stream text as it's generated. Streams at turn granularity — your prompt should tell Claude to narrate progress (e.g., "print your findings as you go") so there's text to stream between tool calls. When redirecting to a file (`> report.md`), narration streams to stderr while clean content goes to the file.
+- **`--live`** = stream text as it's generated — prompt should say "print your findings as you go" for intermediate output
 - **Stdin piping** = pipe data in with `cat file | ./script.md`
 - **Variables** = declare `vars:` in YAML front-matter, override with `--varname "value"` from CLI
 - **CLI overrides shebang** = `ai --aws script.md` overrides the script's shebang provider
